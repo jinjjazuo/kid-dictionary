@@ -25,7 +25,7 @@ export default function QuizGame({ questions, onComplete }: Props) {
 
   function handleNext() {
     if (current + 1 >= questions.length) {
-      onComplete(score + (isCorrect ? 1 : 0), questions.length)
+      onComplete(score, questions.length)
     } else {
       setCurrent(c => c + 1)
       setSelected(null)
