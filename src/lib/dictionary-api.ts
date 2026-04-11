@@ -36,7 +36,7 @@ export async function fetchWordFromDictionaryApi(
       synonyms.push(...(def.synonyms ?? []))
     }
   }
-  const uniqueSynonyms = [...new Set(synonyms)].slice(0, config.word.maxSynonyms)
+  const uniqueSynonyms = Array.from(new Set(synonyms)).slice(0, config.word.maxSynonyms)
 
   return { phonetic, pronunciationUrl, rawDefinition, synonyms: uniqueSynonyms }
 }
