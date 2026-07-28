@@ -1,33 +1,43 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 
-export default function SearchBar({ initialValue = '' }: { initialValue?: string }) {
-  const [query, setQuery] = useState(initialValue)
+import { useRouter } from 'next/navigation'
+import { useState, type FormEvent } from 'react'
+import { config } from '@/config'
+import { Button } from '@/components/ui/Button'
+
+/**
+ * The primary entry point to the application.
+ *
+ * Input is capped at the configured length and trimmed before navigation, so
+ * a stray space cannot create a second cache entry for the same word.
+ */
+export function SearchBar({ initialValue = '' }: { initialValue?: string }) {
+  const [value, setValue] = useState(initialValue)
   const router = useRouter()
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    const word = query.trim().toLowerCase()
-    if (word) router.push(`/search/${encodeURIComponent(word)}`)
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    const word = value.trim().toLowerCase()
+    if (!word) return
+    router.push(`/search/${encodeURIComponent(word)}`)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 w-full max-w-lg">
+    <form onSubmit={handleSubmit} className="mx-auto flex w-full max-w-xl gap-2">
       <input
         type="text"
-        value={query}
-        onChange={e => setQuery(e.target.value)}
-        placeholder="Search a word..."
-        maxLength={50}
-        className="flex-1 rounded-2xl border-2 border-yellow-300 bg-white px-5 py-4 font-nunito text-xl focus:border-orange-400 focus:outline-none shadow-sm"
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        maxLength={config.word.maxInputLength}
+        placeholder="Type any word..."
+        aria-label="Search for a word"
+        className="h-14 flex-1 rounded-lg border-2 border-border bg-card px-5
+                   font-nunito text-lg text-foreground placeholder:text-muted-foreground
+                   focus:border-primary focus:outline-none focus:ring-4 focus:ring-ring/30"
       />
-      <button
-        type="submit"
-        className="bg-orange-400 hover:bg-orange-500 text-white font-fredoka text-xl rounded-2xl px-6 py-4 transition-colors shadow-sm min-w-[120px]"
-      >
-        Search!
-      </button>
+      <Button type="submit" variant="playful" size="lg" disabled={!value.trim()}>
+        Look up
+      </Button>
     </form>
   )
 }
