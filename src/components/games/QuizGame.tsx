@@ -1,87 +1,120 @@
 'use client'
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import type { QuizQuestion } from '@/types'
 
-interface Props {
-  questions: QuizQuestion[]
-  onComplete: (score: number, total: number) => void
-}
+import { useMemo, useState } from 'react'
+import Link from 'next/link'
+import { generateQuizQuestions } from '@/lib/quiz'
+import type { SavedWord } from '@/lib/store/types'
+import { Button } from '@/components/ui/Button'
+import { Card, CardContent } from '@/components/ui/Card'
 
-export default function QuizGame({ questions, onComplete }: Props) {
-  const [current, setCurrent] = useState(0)
-  const [selected, setSelected] = useState<number | null>(null)
+/**
+ * A round of multiple-choice questions over the user's collection.
+ *
+ * Questions are generated once per round via useMemo. Regenerating on render
+ * would reshuffle the choices under the child's finger mid-question.
+ *
+ * A wrong answer reveals the correct one and moves on rather than allowing a
+ * retry, so the score means something and the round always ends.
+ */
+export function QuizGame({ words }: { words: SavedWord[] }) {
+  const [round, setRound] = useState(0)
+  const questions = useMemo(() => generateQuizQuestions(words), [words, round])
+
+  const [index, setIndex] = useState(0)
+  const [chosen, setChosen] = useState<number | null>(null)
   const [score, setScore] = useState(0)
 
-  const question = questions[current]
-  const isAnswered = selected !== null
+  const question = questions[index]
+  const finished = index >= questions.length
 
-  function handleSelect(index: number) {
-    if (isAnswered) return
-    setSelected(index)
-    if (index === question.answerIndex) setScore(s => s + 1)
+  function choose(choiceIndex: number) {
+    // Ignore taps after the first: the answer is already revealed.
+    if (chosen !== null) return
+    setChosen(choiceIndex)
+    if (choiceIndex === question.answerIndex) setScore(s => s + 1)
   }
 
-  function handleNext() {
-    if (current + 1 >= questions.length) {
-      onComplete(score, questions.length)
-    } else {
-      setCurrent(c => c + 1)
-      setSelected(null)
-    }
+  function next() {
+    setChosen(null)
+    setIndex(i => i + 1)
   }
 
-  function buttonColors(index: number): string {
-    if (!isAnswered) return 'bg-white border-yellow-200 hover:border-orange-300 text-gray-700'
-    if (index === question.answerIndex) return 'bg-green-100 border-green-400 text-green-800'
-    if (index === selected) return 'bg-red-100 border-red-400 text-red-800'
-    return 'bg-white border-yellow-200 text-gray-400'
+  function playAgain() {
+    setIndex(0)
+    setChosen(null)
+    setScore(0)
+    setRound(r => r + 1)
+  }
+
+  if (finished) {
+    const perfect = score === questions.length
+    return (
+      <Card className="mx-auto max-w-md">
+        <CardContent className="text-center">
+          <h2 className="mb-2 font-fredoka text-3xl font-bold">
+            {perfect ? 'Perfect!' : 'Well done!'}
+          </h2>
+          <p className="mb-6 font-nunito text-xl">
+            You got <span className="font-bold text-primary">{score}</span> out of{' '}
+            {questions.length}.
+          </p>
+          <div className="flex justify-center gap-3">
+            <Button variant="playful" onClick={playAgain}>Play again</Button>
+            <Link href="/dictionary"><Button variant="outline">My words</Button></Link>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={current}
-        initial={{ opacity: 0, x: 40 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -40 }}
-        className="space-y-6"
-      >
-        <div className="flex justify-between font-nunito text-gray-400">
-          <span>Question {current + 1} of {questions.length}</span>
-          <span>Score: {score}</span>
+    <Card className="mx-auto max-w-2xl">
+      <CardContent>
+        <p className="mb-4 font-nunito text-sm text-muted-foreground">
+          Question {index + 1} of {questions.length}
+        </p>
+
+        <h2 className="mb-6 font-fredoka text-2xl font-bold">
+          {question.mode === 'word-to-meaning'
+            ? <>What does <span className="text-primary">{question.prompt}</span> mean?</>
+            : <>Which word means: <span className="text-primary">{question.prompt}</span></>}
+        </h2>
+
+        <div className="space-y-2">
+          {question.choices.map((choice, i) => {
+            const isAnswer = i === question.answerIndex
+            const isChosen = i === chosen
+            // Colour only appears after an answer, so it never hints.
+            const state =
+              chosen === null ? 'border-border bg-card hover:border-primary hover:bg-primary/5'
+              : isAnswer ? 'border-mint bg-mint/20'
+              : isChosen ? 'border-coral bg-coral/20 animate-shake'
+              : 'border-border bg-card opacity-60'
+
+            return (
+              <button
+                key={i}
+                onClick={() => choose(i)}
+                disabled={chosen !== null}
+                className={`w-full min-h-[3rem] rounded-lg border-2 p-4 text-left font-nunito text-lg transition-all ${state}`}
+              >
+                {choice}
+              </button>
+            )
+          })}
         </div>
 
-        <div className="bg-white rounded-3xl p-6 border-2 border-yellow-100 shadow-sm">
-          <p className="font-nunito text-sm text-gray-400 mb-2">
-            {question.mode === 'word-to-meaning' ? 'What does this word mean?' : 'Which word matches this meaning?'}
-          </p>
-          <p className="font-fredoka text-3xl text-orange-400">{question.prompt}</p>
-        </div>
-
-        <div className="space-y-3">
-          {question.choices.map((choice, i) => (
-            <motion.button
-              key={i}
-              onClick={() => handleSelect(i)}
-              whileTap={!isAnswered ? { scale: 0.97 } : {}}
-              className={`w-full text-left rounded-2xl px-5 py-4 border-2 font-nunito text-lg transition-colors ${buttonColors(i)}`}
-            >
-              {choice}
-              {isAnswered && i === question.answerIndex && ' ✓'}
-            </motion.button>
-          ))}
-        </div>
-
-        {isAnswered && (
-          <button
-            onClick={handleNext}
-            className="w-full bg-orange-400 hover:bg-orange-500 text-white font-fredoka text-xl rounded-2xl py-4 transition-colors"
-          >
-            {current + 1 >= questions.length ? 'See Results!' : 'Next →'}
-          </button>
+        {chosen !== null && (
+          <div className="mt-6 flex items-center justify-between gap-4">
+            <p className="font-nunito font-bold">
+              {chosen === question.answerIndex ? 'Correct!' : 'The right answer is highlighted.'}
+            </p>
+            <Button variant="playful" onClick={next}>
+              {index === questions.length - 1 ? 'See my score' : 'Next'}
+            </Button>
+          </div>
         )}
-      </motion.div>
-    </AnimatePresence>
+      </CardContent>
+    </Card>
   )
 }
