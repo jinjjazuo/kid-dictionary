@@ -3,6 +3,12 @@ import { failOnConsoleErrors } from './fixtures'
 
 test.describe('word lookup', () => {
   test('searching a word shows its definition and saves it', async ({ page }) => {
+    // A cache miss can take up to the 60s assertion timeout below (two model
+    // calls plus image compression), so the test itself needs headroom past
+    // the framework's 30s default or a slow-but-successful generation is
+    // reported as a timeout rather than a real failure.
+    test.setTimeout(90_000)
+
     const errors: string[] = []
     failOnConsoleErrors(page, errors)
 
