@@ -2,47 +2,50 @@ import type { AgeGroup } from '@/config'
 
 export type { AgeGroup }
 
+/**
+ * Grammatical category from dictionaryapi.dev. Drives the colour of the badge
+ * on a word card. Unrecognised values fall back to a neutral badge, so this
+ * union does not need to be exhaustive.
+ */
+export type PartOfSpeech =
+  | 'noun' | 'verb' | 'adjective' | 'adverb' | 'pronoun'
+  | 'preposition' | 'conjunction' | 'interjection'
+
+/** One panel of the comic: its number and the narration beneath it. */
 export type Scene = {
-  scene: number  // 1-indexed panel number
-  text: string   // narration text for this panel
+  scene: number
+  text: string
 }
 
+/** A fully generated word, as returned by the lookup pipeline. */
 export type WordData = {
-  id: string
+  id: string | null
   word: string
   ageGroup: AgeGroup
   definition: string
+  partOfSpeech: string | null
   examples: string[]
   synonyms: string[]
   phonetic: string | null
-  pronunciationUrl: string | null
   storyScript: Scene[]
   comicImageUrl: string | null
+  textVersion: number
 }
 
-export type UserWord = {
-  id: string           // user_words.id
-  wordId: string       // words.id
-  word: string
-  definition: string
-  examples: string[]
-  synonyms: string[]
-  phonetic: string | null
-  pronunciationUrl: string | null
-  comicImageUrl: string | null
-  addedAt: string      // ISO timestamp
-}
+export type QuizMode = 'word-to-meaning' | 'meaning-to-word'
 
 export type QuizQuestion = {
-  mode: 'word-to-meaning' | 'meaning-to-word'
-  prompt: string       // the word or definition shown
-  choices: string[]    // 4 options
-  answerIndex: number  // index of correct choice
+  mode: QuizMode
+  /** The word or the definition, depending on mode. */
+  prompt: string
+  choices: string[]
+  answerIndex: number
 }
 
+/** Raw data from dictionaryapi.dev, before any AI simplification. */
 export type DictionaryApiResult = {
   phonetic: string | null
-  pronunciationUrl: string | null
+  partOfSpeech: string | null
   rawDefinition: string
   synonyms: string[]
 }

@@ -3,10 +3,122 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: 180 40% 97%;
+    --foreground: 220 25% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 20%;
+    --primary: 174 72% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 35 100% 65%;
+    --secondary-foreground: 35 100% 20%;
+    --muted: 180 20% 92%;
+    --muted-foreground: 220 15% 45%;
+    --accent: 330 85% 65%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 180 20% 88%;
+    --input: 180 20% 88%;
+    --ring: 174 72% 45%;
+    --radius: 1rem;
+
+    --coral: 12 100% 68%;
+    --coral-foreground: 0 0% 100%;
+    --sunshine: 45 100% 60%;
+    --sunshine-foreground: 45 100% 15%;
+    --lavender: 270 60% 75%;
+    --lavender-foreground: 270 60% 20%;
+    --mint: 150 60% 70%;
+    --mint-foreground: 150 60% 15%;
+    --sky: 200 90% 70%;
+    --sky-foreground: 200 90% 15%;
+
+    --gradient-hero: linear-gradient(135deg, hsl(174 72% 45%), hsl(200 90% 70%));
+    --gradient-fun: linear-gradient(135deg, hsl(35 100% 65%), hsl(12 100% 68%));
+
+    --shadow-card: 0 8px 30px -8px hsl(220 25% 20% / 0.15);
+    --shadow-button: 0 4px 12px -2px hsl(174 72% 45% / 0.4);
+    /* Hard offset, no blur. The signature chunky pressable look. */
+    --shadow-playful: 0 6px 0 hsl(174 72% 35%);
+  }
+
   * {
     box-sizing: border-box;
+    border-color: hsl(var(--border));
   }
+
   body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     -webkit-tap-highlight-color: transparent;
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-fredoka), sans-serif;
+  }
+}
+
+@layer utilities {
+  .bg-gradient-hero { background-image: var(--gradient-hero); }
+  .bg-gradient-fun { background-image: var(--gradient-fun); }
+  .shadow-playful { box-shadow: var(--shadow-playful); }
+  .shadow-card { box-shadow: var(--shadow-card); }
+  .shadow-button { box-shadow: var(--shadow-button); }
+  .text-gradient {
+    background-image: var(--gradient-hero);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+}
+
+@keyframes bounce-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  33% { transform: translateY(-10px) rotate(2deg); }
+  66% { transform: translateY(-5px) rotate(-2deg); }
+}
+@keyframes pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+.animate-bounce-soft { animation: bounce-soft 2s ease-in-out infinite; }
+.animate-wiggle { animation: wiggle 0.5s ease-in-out infinite; }
+.animate-float { animation: float 4s ease-in-out infinite; }
+.animate-pop { animation: pop 0.3s ease-out forwards; }
+.animate-shake { animation: shake 0.4s ease-in-out; }
+
+/*
+ * Decorative motion only. A child who is motion-sensitive, or whose device is
+ * set to reduce motion, gets a static page with no loss of function.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+::-webkit-scrollbar { width: 12px; }
+::-webkit-scrollbar-track { background: hsl(var(--muted)); border-radius: 10px; }
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary));
+  border-radius: 10px;
+  border: 3px solid hsl(var(--muted));
 }
