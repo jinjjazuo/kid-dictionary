@@ -1,44 +1,27 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import CrosswordGame from '@/components/games/CrosswordGame'
 
+import { config } from '@/config'
+import { useWordStore } from '@/hooks/useWordStore'
+import { CrosswordGame } from '@/components/games/CrosswordGame'
+import { NotEnoughWords } from '@/components/games/NotEnoughWords'
+
+/** Client-only: the layout is generated in the browser from localStorage. */
 export default function CrosswordPage() {
-  const [words, setWords] = useState<{ word: string; definition: string }[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const router = useRouter()
-
-  useEffect(() => {
-    fetch('/api/games/crossword')
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) setError(data.error)
-        else setWords(data.words)
-      })
-      .catch(() => setError('Failed to load crossword'))
-      .finally(() => setLoading(false))
-  }, [])
-
-  if (loading) return (
-    <main className="min-h-screen flex items-center justify-center">
-      <p className="font-fredoka text-2xl text-orange-400">Building crossword...</p>
-    </main>
-  )
-
-  if (error) return (
-    <main className="min-h-screen flex flex-col items-center justify-center gap-4 p-6">
-      <p className="font-nunito text-xl text-gray-500">{error}</p>
-      <button onClick={() => router.push('/dictionary')} className="text-orange-400 font-nunito hover:underline">
-        Add more words first
-      </button>
-    </main>
-  )
+  const { words, loading } = useWordStore()
 
   return (
-    <main className="min-h-screen p-6 max-w-3xl mx-auto space-y-6">
-      <h1 className="font-fredoka text-3xl text-orange-400">Word Crossword</h1>
-      <CrosswordGame words={words} />
+    <main className="container mx-auto px-4 py-8">
+      <h1 className="mb-8 text-center font-fredoka text-3xl font-bold md:text-4xl">
+        Word Crossword
+      </h1>
+
+      {loading ? (
+        <p className="text-center font-nunito text-muted-foreground">Loading your words...</p>
+      ) : words.length < config.games.minWordsRequired ? (
+        <NotEnoughWords have={words.length} />
+      ) : (
+        <CrosswordGame words={words} />
+      )}
     </main>
   )
 }
