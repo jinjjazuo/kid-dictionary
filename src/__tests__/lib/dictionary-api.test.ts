@@ -31,7 +31,6 @@ describe('fetchWordFromDictionaryApi', () => {
     expect(result).not.toBeNull()
     expect(result!.rawDefinition).toBe('Very large in size or quantity.')
     expect(result!.phonetic).toBe('/ɪˈnɔːməs/')
-    expect(result!.pronunciationUrl).toBe('https://api.example.com/enormous.mp3')
     expect(result!.synonyms).toContain('huge')
   })
 
@@ -46,6 +45,33 @@ describe('fetchWordFromDictionaryApi', () => {
     })
     const result = await fetchWordFromDictionaryApi('test')
     expect(result!.phonetic).toBeNull()
-    expect(result!.pronunciationUrl).toBeNull()
+  })
+
+  it('returns the part of speech from the first meaning', async () => {
+    // Drives the badge colour on every word card.
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ([{
+        word: 'enormous',
+        phonetics: [{ text: '/ɪˈnɔːməs/' }],
+        meanings: [{
+          partOfSpeech: 'adjective',
+          definitions: [{ definition: 'very large in size' }],
+          synonyms: ['huge', 'massive'],
+        }],
+      }]),
+    }) as unknown as typeof fetch
+
+    const result = await fetchWordFromDictionaryApi('enormous')
+    expect(result?.partOfSpeech).toBe('adjective')
+  })
+
+  it('returns a null part of speech when the entry has none', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ([{ word: 'x', meanings: [{ definitions: [{ definition: 'a thing' }] }] }]),
+    }) as unknown as typeof fetch
+
+    expect((await fetchWordFromDictionaryApi('x'))?.partOfSpeech).toBeNull()
   })
 })

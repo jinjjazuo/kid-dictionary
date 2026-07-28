@@ -15,19 +15,13 @@ export async function fetchWordFromDictionaryApi(
   const entry = data[0]
   if (!entry) return null
 
-  type PhoneticEntry = { text?: string; audio?: string }
-  // Find first phonetic with both text and audio
-  const phoneticWithAudio = entry.phonetics?.find(
-    (p: PhoneticEntry) => p.text && p.audio
-  )
-  const anyPhonetic = entry.phonetics?.find((p: PhoneticEntry) => p.text)
-
-  const phonetic = phoneticWithAudio?.text ?? anyPhonetic?.text ?? null
-  const pronunciationUrl = phoneticWithAudio?.audio ?? null
+  type PhoneticEntry = { text?: string }
+  const phonetic = entry.phonetics?.find((p: PhoneticEntry) => p.text)?.text ?? null
 
   // Collect first definition
   const firstMeaning = entry.meanings?.[0]
   const rawDefinition = firstMeaning?.definitions?.[0]?.definition ?? ''
+  const partOfSpeech: string | null = firstMeaning?.partOfSpeech ?? null
 
   // Collect synonyms from all meanings, up to limit
   const synonyms: string[] = []
@@ -39,5 +33,5 @@ export async function fetchWordFromDictionaryApi(
   }
   const uniqueSynonyms = Array.from(new Set(synonyms)).slice(0, config.word.maxSynonyms)
 
-  return { phonetic, pronunciationUrl, rawDefinition, synonyms: uniqueSynonyms }
+  return { phonetic, partOfSpeech, rawDefinition, synonyms: uniqueSynonyms }
 }

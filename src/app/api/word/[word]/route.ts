@@ -1,19 +1,47 @@
 import { NextResponse } from 'next/server'
-import { lookupWord } from '@/lib/word-pipeline'
 import { config } from '@/config'
+import { lookupWord } from '@/lib/word-pipeline'
 import type { AgeGroup } from '@/types'
+
+/**
+ * The application's only API route.
+ *
+ * It exists because the browser cannot hold the AI key or the Supabase
+ * service-role key, and cannot run sharp. Everything else — saving, reading
+ * the collection, both games — happens client-side against localStorage.
+ *
+ * Generation can take around ten seconds on a cache miss, so the timeout is
+ * raised above the platform default.
+ */
+export const maxDuration = 60
 
 export async function GET(
   request: Request,
-  { params }: { params: { word: string } }
+  { params }: { params: { word: string } },
 ) {
-  const { searchParams } = new URL(request.url)
-  const rawAgeGroup = searchParams.get('ageGroup')
-  const ageGroup: AgeGroup = rawAgeGroup === '7-10' ? '7-10' : '4-6'
-  const word = params.word.toLowerCase().trim().slice(0, config.word.maxInputLength)
-  if (!word) return NextResponse.json({ error: 'Word is required' }, { status: 400 })
+  const decoded = decodeURIComponent(params.word)
 
-  const result = await lookupWord(word, ageGroup)
-  if (!result.found) return NextResponse.json({ error: 'Word not found' }, { status: 404 })
-  return NextResponse.json(result.data)
+  const requested = new URL(request.url).searchParams.get('ageGroup')
+  const ageGroup: AgeGroup =
+    requested === '7-10' || requested === '4-6' ? requested : config.defaultAgeGroup
+
+  try {
+    const result = await lookupWord(decoded, ageGroup)
+
+    if (!result.found) {
+      // Unknown and blocked words share a response. Telling a child which
+      // words are blocked would invite them to go looking.
+      return NextResponse.json(
+        { error: "Hmm, we don't know that word!" },
+        { status: 404 },
+      )
+    }
+
+    return NextResponse.json(result.data)
+  } catch {
+    return NextResponse.json(
+      { error: 'Something went wrong. Please try again!' },
+      { status: 500 },
+    )
+  }
 }
