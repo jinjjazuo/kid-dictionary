@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kids Dictionary
 
-## Getting Started
+A word lookup app for children aged 4–10. Each word gets a simplified
+definition, examples, synonyms, and an AI-generated comic strip. Words are
+collected automatically and reinforced with a quiz and a crossword.
 
-First, run the development server:
+## Running it
 
 ```bash
+npm install
+cp .env.example .env.local   # then fill in the values below
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Where to get it |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Settings → API |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Settings → API |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API. **Server-only.** |
+| `AI_PROVIDER` | `gemini` or `qwen`. Defaults to `gemini`. |
+| `GOOGLE_AI_API_KEY` | https://aistudio.google.com/apikey |
+| `OPENROUTER_API_KEY` | https://openrouter.ai/keys — only for `qwen` |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Supabase setup
 
-## Learn More
+Under **Settings → API → Security**: Data API **on**, automatically expose new
+tables **off**, automatic RLS **on**.
 
-To learn more about Next.js, take a look at the following resources:
+Create a **public** Storage bucket named `comics`, then run
+`supabase/migrations/002_revamp_schema.sql` in the SQL editor. The migration
+also grants the `service_role` the table access the server-side client needs,
+since automatic RLS leaves it with none by default.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Testing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm test           # unit
+npm run test:e2e   # browser
+```
 
-## Deploy on Vercel
+## How it works
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+There are no accounts. A user's collection lives in their browser's
+localStorage; Supabase holds only a shared cache of generated words, so each
+word is produced once for everyone rather than once per visitor.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+There is exactly one API route, `GET /api/word/[word]`. It exists because the
+browser cannot hold the AI or service-role keys and cannot run sharp.
+Everything else — saving, reading the collection, both games — runs
+client-side.
+
+Comics are currently text-only: free Gemini API keys carry no image quota, so
+the pipeline stores a null `comic_image_url` when generation fails and the UI
+renders the story text on its own, without a strip.
+
+See `docs/superpowers/specs/2026-07-28-kid-dictionary-revamp-design.md` for
+the design decisions and why they were made.
