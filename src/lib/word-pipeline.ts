@@ -77,7 +77,13 @@ export async function lookupWord(word: string, ageGroup: AgeGroup): Promise<Word
   return { found: true, data: dbRowToWordData(inserted) }
 }
 
-export function dbRowToWordData(row: any): WordData & { id: string | null } {
+type DbRow = {
+  id?: string; word: string; age_group: string; definition: string
+  examples?: string[]; synonyms?: string[]; phonetic?: string | null
+  pronunciation_url?: string | null; story_script?: Scene[]; comic_image_url?: string | null
+}
+
+export function dbRowToWordData(row: DbRow): WordData & { id: string | null } {
   return {
     id: row.id ?? null,
     word: row.word,

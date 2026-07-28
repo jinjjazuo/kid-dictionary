@@ -12,7 +12,8 @@ export async function GET() {
     .select('words(word, definition)')
     .eq('user_id', user.id)
 
-  const words = (rawWords ?? []).map((row: any) => ({
+  type WordRow = { words: { word: string; definition: string } }
+  const words = (rawWords ?? []).map((row: WordRow) => ({
     word: row.words.word as string,
     definition: row.words.definition as string,
   }))

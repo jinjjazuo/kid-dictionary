@@ -22,7 +22,16 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 })
 
-  const words: UserWord[] = (data ?? []).map((row: any) => ({
+  type UserWordRow = {
+    id: string
+    added_at: string
+    words: {
+      id: string; word: string; definition: string; examples: string[] | null
+      synonyms: string[] | null; phonetic: string | null
+      pronunciation_url: string | null; comic_image_url: string | null
+    }
+  }
+  const words: UserWord[] = (data ?? []).map((row: UserWordRow) => ({
     id: row.id,
     wordId: row.words.id,
     word: row.words.word,

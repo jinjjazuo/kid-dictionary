@@ -15,7 +15,6 @@ export default function QuizGame({ questions, onComplete }: Props) {
 
   const question = questions[current]
   const isAnswered = selected !== null
-  const isCorrect = selected === question.answerIndex
 
   function handleSelect(index: number) {
     if (isAnswered) return

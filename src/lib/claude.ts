@@ -42,11 +42,15 @@ export function buildComicImagePrompt(scenes: Scene[], panelCount: number): stri
   return `A comic strip with exactly ${panelCount} equal-width vertical panels side by side, no borders between panels, flat illustration style, bright colours, child-friendly cartoon art. ${panelDescriptions}`
 }
 
-export function parseJsonResponse(text: string): any | null {
+export function parseJsonResponse(text: string): Record<string, unknown> | unknown[] | null {
   // Strip markdown code blocks if present
   const stripped = text.replace(/```(?:json)?\n?/g, '').replace(/```/g, '').trim()
   try {
-    return JSON.parse(stripped)
+    const parsed: unknown = JSON.parse(stripped)
+    if (parsed !== null && typeof parsed === 'object') {
+      return parsed as Record<string, unknown> | unknown[]
+    }
+    return null
   } catch {
     return null
   }
@@ -66,8 +70,10 @@ export async function enrichWord(
     })
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
     const parsed = parseJsonResponse(text)
-    if (!parsed?.definition || !Array.isArray(parsed?.examples)) return null
-    return { definition: parsed.definition, examples: parsed.examples.slice(0, 2) }
+    if (!parsed || Array.isArray(parsed)) return null
+    const p = parsed as Record<string, unknown>
+    if (typeof p.definition !== 'string' || !Array.isArray(p.examples)) return null
+    return { definition: p.definition, examples: (p.examples as string[]).slice(0, 2) }
   } catch {
     return null
   }

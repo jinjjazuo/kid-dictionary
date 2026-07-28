@@ -19,7 +19,16 @@ export default async function DictionaryPage() {
     .eq('user_id', user.id)
     .order('added_at', { ascending: false })
 
-  const words: UserWord[] = (rawWords ?? []).map((row: any) => ({
+  type UserWordRow = {
+    id: string
+    added_at: string
+    words: {
+      id: string; word: string; definition: string; examples: string[] | null
+      synonyms: string[] | null; phonetic: string | null
+      pronunciation_url: string | null; comic_image_url: string | null
+    }
+  }
+  const words: UserWord[] = (rawWords ?? []).map((row: UserWordRow) => ({
     id: row.id,
     wordId: row.words.id,
     word: row.words.word,

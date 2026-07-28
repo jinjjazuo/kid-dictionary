@@ -15,11 +15,12 @@ export async function fetchWordFromDictionaryApi(
   const entry = data[0]
   if (!entry) return null
 
+  type PhoneticEntry = { text?: string; audio?: string }
   // Find first phonetic with both text and audio
   const phoneticWithAudio = entry.phonetics?.find(
-    (p: any) => p.text && p.audio
+    (p: PhoneticEntry) => p.text && p.audio
   )
-  const anyPhonetic = entry.phonetics?.find((p: any) => p.text)
+  const anyPhonetic = entry.phonetics?.find((p: PhoneticEntry) => p.text)
 
   const phonetic = phoneticWithAudio?.text ?? anyPhonetic?.text ?? null
   const pronunciationUrl = phoneticWithAudio?.audio ?? null

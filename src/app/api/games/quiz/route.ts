@@ -17,7 +17,15 @@ export async function GET(request: Request) {
     .select('id, added_at, words(id, word, definition, examples, synonyms, phonetic, pronunciation_url, comic_image_url)')
     .eq('user_id', user.id)
 
-  const words: UserWord[] = (rawWords ?? []).map((row: any) => ({
+  type UserWordRow = {
+    id: string; added_at: string
+    words: {
+      id: string; word: string; definition: string; examples: string[] | null
+      synonyms: string[] | null; phonetic: string | null
+      pronunciation_url: string | null; comic_image_url: string | null
+    }
+  }
+  const words: UserWord[] = (rawWords ?? []).map((row: UserWordRow) => ({
     id: row.id, wordId: row.words.id, word: row.words.word,
     definition: row.words.definition, examples: row.words.examples ?? [],
     synonyms: row.words.synonyms ?? [], phonetic: row.words.phonetic ?? null,
@@ -42,7 +50,12 @@ export async function GET(request: Request) {
       .select('id, word, definition, examples, synonyms, phonetic, pronunciation_url, comic_image_url')
       .eq('age_group', ageGroup)
       .limit(20)
-    globalWords = (extras ?? []).map((w: any) => ({
+  type GlobalWordRow = {
+    id: string; word: string; definition: string; examples: string[] | null
+    synonyms: string[] | null; phonetic: string | null
+    pronunciation_url: string | null; comic_image_url: string | null
+  }
+    globalWords = (extras ?? []).map((w: GlobalWordRow) => ({
       id: '', wordId: w.id, word: w.word, definition: w.definition,
       examples: w.examples ?? [], synonyms: w.synonyms ?? [],
       phonetic: w.phonetic ?? null, pronunciationUrl: w.pronunciation_url ?? null,
