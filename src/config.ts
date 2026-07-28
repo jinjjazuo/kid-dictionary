@@ -36,7 +36,16 @@ export const config = {
     /** gemini | qwen — selected by the AI_PROVIDER environment variable. */
     provider: process.env.AI_PROVIDER ?? 'gemini',
     gemini: {
-      textModel: 'gemini-2.5-flash',
+      /**
+       * Uses the -latest alias to track Google's current flash model. Direct
+       * version names (e.g., gemini-2.5-flash) rot as Google renames generations.
+       */
+      textModel: 'gemini-flash-latest',
+      /**
+       * Image model requires a billing-enabled key. Free tier has no image quota
+       * as of 2026-07. The pipeline caches comic_image_url as null when generation
+       * fails, resulting in text-only entries.
+       */
       imageModel: 'gemini-2.5-flash-image',
     },
     qwen: {
