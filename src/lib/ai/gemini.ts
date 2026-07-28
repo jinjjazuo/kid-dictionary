@@ -5,7 +5,7 @@ import type { Enrichment, ImageProvider, TextProvider } from './types'
 import {
   enrichSystemPrompt, enrichUserPrompt,
   storySystemPrompt, storyUserPrompt,
-  parseJsonResponse,
+  parseJsonResponse, keepExamplesUsingWord,
 } from './prompts'
 
 /**
@@ -54,10 +54,13 @@ export class GeminiTextProvider implements TextProvider {
     // with no definition would serve an empty page forever.
     if (!parsed?.definition) return null
 
+    // Examples that never use the word teach nothing, so they are dropped
+    // rather than shown. Filtering before the slice keeps a good example that
+    // the model listed after a bad one.
     return {
       definition: parsed.definition,
       examples: Array.isArray(parsed.examples)
-        ? parsed.examples.slice(0, config.word.maxExamples)
+        ? keepExamplesUsingWord(parsed.examples, word).slice(0, config.word.maxExamples)
         : [],
     }
   }

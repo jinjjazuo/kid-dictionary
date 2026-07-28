@@ -21,13 +21,24 @@ describe('GeminiTextProvider.enrichWord', () => {
 
   it('returns the parsed enrichment', async () => {
     mockGenerateContent.mockResolvedValue(
-      textResponse('{"definition":"Very big.","examples":["The dog is big.","My bag is big."]}')
+      textResponse('{"definition":"Very, very big.","examples":["The elephant is enormous.","My bag is enormous."]}')
     )
     const result = await new GeminiTextProvider('key').enrichWord('enormous', 'very large', '4-6')
     expect(result).toEqual({
-      definition: 'Very big.',
-      examples: ['The dog is big.', 'My bag is big.'],
+      definition: 'Very, very big.',
+      examples: ['The elephant is enormous.', 'My bag is enormous.'],
     })
+  })
+
+  it('drops examples that never use the word', async () => {
+    // Observed failure: asked for "enormous", the model paraphrased it away
+    // and returned sentences about being "big". Such a sentence does not show
+    // the child how to use the word, so it must not reach the page.
+    mockGenerateContent.mockResolvedValue(
+      textResponse('{"definition":"Very, very big.","examples":["The dog is so big and tall.","The elephant is enormous."]}')
+    )
+    const result = await new GeminiTextProvider('key').enrichWord('enormous', 'very large', '4-6')
+    expect(result?.examples).toEqual(['The elephant is enormous.'])
   })
 
   it('returns null on malformed JSON', async () => {

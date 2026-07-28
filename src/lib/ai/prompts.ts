@@ -31,11 +31,15 @@ export function enrichSystemPrompt(ageGroup: AgeGroup): string {
 
 Rules:
 - Use only words that ${audience} already knows. If you need a harder word to be precise, rephrase instead — never reach for the harder word.
-- Never use the word being defined inside its own definition.
-- Write the definition as ${sentences}.
-- Write exactly ${config.word.maxExamples} example sentences using the word naturally.
+- Write the definition as ${sentences}. The definition must not contain the word being defined.
+- Write exactly ${config.word.maxExamples} example sentences. Every example sentence MUST contain the word being defined, spelled exactly as given. The examples are how the child learns to use the word — an example that avoids the word, or replaces it with an easier synonym, is useless and must not be written.
+- Each example must show the word doing its job, so that a child who did not read the definition could still guess what it means from the sentence.
 - Set every example in a child's own world: home, school, playground, family, animals, food, weather.
 - Keep it warm and plain. No jokes that need adult knowledge.
+
+For the word "enormous", these are the shapes to follow and avoid:
+GOOD: "The elephant at the zoo was enormous." — uses the word, and the setting hints at the meaning.
+BAD: "The dog is so big and tall." — the word never appears, so the child learns nothing.
 
 Respond with JSON only, in this exact shape:
 {"definition": "...", "examples": ["...", "..."]}`
@@ -93,6 +97,22 @@ export function buildImagePrompt(scenes: Scene[]): string {
     `Flat cartoon illustration, bright cheerful colours, thick clean outlines, simple friendly shapes. ` +
     `The same character appears in every panel. No text, no speech bubbles, no lettering anywhere. ` +
     panels
+}
+
+/**
+ * Keeps only the examples that actually contain the word.
+ *
+ * The prompt demands the word verbatim, but models still paraphrase it away
+ * ("The dog is so big" for "enormous"), and such a sentence teaches nothing.
+ * Matching is case-insensitive and allows a suffix, so "enormously" and
+ * "Enormous" both count, while a bare synonym does not.
+ */
+export function keepExamplesUsingWord(examples: string[], word: string): string[] {
+  const stem = word.trim().toLowerCase()
+  if (!stem) return []
+
+  const pattern = new RegExp(`\\b${stem.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\w*\\b`, 'i')
+  return examples.filter(example => pattern.test(example))
 }
 
 /**

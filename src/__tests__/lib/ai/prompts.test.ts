@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   enrichSystemPrompt, enrichUserPrompt,
   storySystemPrompt, storyUserPrompt,
-  buildImagePrompt, parseJsonResponse,
+  buildImagePrompt, parseJsonResponse, keepExamplesUsingWord,
 } from '@/lib/ai/prompts'
 import { config } from '@/config'
 
@@ -20,7 +20,7 @@ describe('enrichment prompts', () => {
   })
 
   it('forbids defining a word with itself', () => {
-    expect(enrichSystemPrompt('4-6').toLowerCase()).toContain('never use the word')
+    expect(enrichSystemPrompt('4-6').toLowerCase()).toContain('must not contain the word')
   })
 
   it('requests the configured number of examples', () => {
@@ -75,6 +75,42 @@ describe('buildImagePrompt', () => {
       { scene: 2, text: 'Second.' },
     ])
     expect(prompt.indexOf('First.')).toBeLessThan(prompt.indexOf('Second.'))
+  })
+})
+
+describe('keepExamplesUsingWord', () => {
+  it('keeps examples containing the word', () => {
+    expect(keepExamplesUsingWord(['The elephant was enormous.'], 'enormous'))
+      .toEqual(['The elephant was enormous.'])
+  })
+
+  it('drops examples that omit the word', () => {
+    expect(keepExamplesUsingWord(['The dog is so big and tall.'], 'enormous'))
+      .toEqual([])
+  })
+
+  it('matches case-insensitively', () => {
+    expect(keepExamplesUsingWord(['Enormous waves crashed on the shore.'], 'enormous'))
+      .toEqual(['Enormous waves crashed on the shore.'])
+  })
+
+  it('allows a suffix on the word', () => {
+    expect(keepExamplesUsingWord(['She smiled enormously at the gift.'], 'enormous'))
+      .toEqual(['She smiled enormously at the gift.'])
+  })
+
+  it('drops a bare synonym that never uses the word', () => {
+    expect(keepExamplesUsingWord(['The castle was gigantic and tall.'], 'enormous'))
+      .toEqual([])
+  })
+
+  it('returns an empty array for an empty word', () => {
+    expect(keepExamplesUsingWord(['Anything at all.'], '')).toEqual([])
+    expect(keepExamplesUsingWord(['Anything at all.'], '   ')).toEqual([])
+  })
+
+  it('does not throw on regex-special characters in the word', () => {
+    expect(() => keepExamplesUsingWord(['I love c++ programming.'], 'c++')).not.toThrow()
   })
 })
 

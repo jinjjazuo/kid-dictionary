@@ -4,7 +4,7 @@ import type { Enrichment, TextProvider } from './types'
 import {
   enrichSystemPrompt, enrichUserPrompt,
   storySystemPrompt, storyUserPrompt,
-  parseJsonResponse,
+  parseJsonResponse, keepExamplesUsingWord,
 } from './prompts'
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
@@ -63,10 +63,13 @@ export class QwenTextProvider implements TextProvider {
     const parsed = parseJsonResponse<Partial<Enrichment>>(raw)
     if (!parsed?.definition) return null
 
+    // Examples that never use the word teach nothing, so they are dropped
+    // rather than shown. Filtering before the slice keeps a good example that
+    // the model listed after a bad one.
     return {
       definition: parsed.definition,
       examples: Array.isArray(parsed.examples)
-        ? parsed.examples.slice(0, config.word.maxExamples)
+        ? keepExamplesUsingWord(parsed.examples, word).slice(0, config.word.maxExamples)
         : [],
     }
   }

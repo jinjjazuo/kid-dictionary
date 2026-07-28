@@ -14,8 +14,8 @@ describe('config', () => {
     expect(getAgeGroupConfig('7-10').sceneCount).toBe(5)
   })
 
-  it('starts both content versions at 1', () => {
-    expect(config.content.textVersion).toBe(1)
+  it('tracks content versions independently', () => {
+    expect(config.content.textVersion).toBe(2)
     expect(config.content.imageVersion).toBe(1)
   })
 

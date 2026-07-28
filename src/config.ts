@@ -28,7 +28,7 @@ export const config = {
    * redraws every comic in the cache.
    */
   content: {
-    textVersion: 1,
+    textVersion: 2,
     imageVersion: 1,
   },
 
