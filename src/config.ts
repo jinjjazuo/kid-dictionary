@@ -37,10 +37,13 @@ export const config = {
     provider: process.env.AI_PROVIDER ?? 'gemini',
     gemini: {
       /**
-       * Uses the -latest alias to track Google's current flash model. Direct
-       * version names (e.g., gemini-2.5-flash) rot as Google renames generations.
+       * Uses the flash-lite -latest alias to track Google's current lite model.
+       * Direct version names (e.g., gemini-2.5-flash) rot as Google renames
+       * generations. Lite is chosen over flash for its 25x larger free daily
+       * quota (500 vs 20 requests/day) — a kids-dictionary definition is well
+       * within a lite model's ability.
        */
-      textModel: 'gemini-flash-latest',
+      textModel: 'gemini-flash-lite-latest',
       /**
        * Image model requires a billing-enabled key. Free tier has no image quota
        * as of 2026-07. The pipeline caches comic_image_url as null when generation
