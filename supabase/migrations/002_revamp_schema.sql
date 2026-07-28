@@ -40,6 +40,12 @@ create policy "Words are publicly readable"
 -- Required because the project has "automatically expose new tables" off.
 grant select on public.words to anon, authenticated;
 
+-- The project disables automatic table exposure, which also strips
+-- service_role's default privileges. The server writes through this role
+-- (it bypasses RLS but still needs table-level grants), so grant it
+-- explicitly — without this, every cache write fails with 42501.
+grant all on public.words to service_role;
+
 -- No insert, update or delete grant for anon. Writes happen only in
 -- server-side routes using the service-role key, which bypasses RLS. A
 -- browser that could write would be able to poison the shared cache for
