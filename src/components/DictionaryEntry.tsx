@@ -1,67 +1,66 @@
-'use client'
-import { useRef } from 'react'
 import Link from 'next/link'
+import { Badge } from '@/components/ui/Badge'
+import { Card, CardContent } from '@/components/ui/Card'
 import type { WordData } from '@/types'
 
-export default function DictionaryEntry({ data }: { data: WordData }) {
-  const audioRef = useRef<HTMLAudioElement>(null)
-
+/**
+ * The written half of a word page: the word, how it sounds, what it means,
+ * examples and synonyms.
+ *
+ * Rendered above the comic so the definition is never gated on image loading.
+ * A child who came to find out what a word means gets that first.
+ */
+export function DictionaryEntry({ data }: { data: WordData }) {
   return (
-    <div className="space-y-6">
-      {/* Word + pronunciation */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <h1 className="font-fredoka text-5xl text-orange-400">{data.word}</h1>
+    <Card>
+      <CardContent>
+        <div className="mb-2 flex flex-wrap items-center gap-3">
+          <h1 className="font-fredoka text-4xl font-bold capitalize md:text-5xl">{data.word}</h1>
+          <Badge partOfSpeech={data.partOfSpeech} />
+        </div>
+
         {data.phonetic && (
-          <span className="font-nunito text-lg text-gray-400">{data.phonetic}</span>
+          <p className="mb-4 font-nunito text-lg text-muted-foreground">{data.phonetic}</p>
         )}
-        {data.pronunciationUrl && (
-          <>
-            <button
-              onClick={() => audioRef.current?.play()}
-              className="bg-yellow-200 hover:bg-yellow-300 rounded-full p-2 transition-colors"
-              aria-label="Hear pronunciation"
-            >
-              🔊
-            </button>
-            <audio ref={audioRef} src={data.pronunciationUrl} />
-          </>
-        )}
-      </div>
 
-      {/* Definition */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border-2 border-yellow-100">
-        <p className="font-nunito text-xl text-gray-700 leading-relaxed">{data.definition}</p>
-      </div>
+        <p className="font-nunito text-xl leading-relaxed">{data.definition}</p>
 
-      {/* Examples */}
-      {data.examples.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="font-fredoka text-xl text-gray-500">Examples</h2>
-          {data.examples.map((ex, i) => (
-            <p key={i} className="font-nunito text-lg text-gray-600 italic border-l-4 border-yellow-300 pl-4">
-              {ex}
-            </p>
-          ))}
-        </div>
-      )}
-
-      {/* Synonyms */}
-      {data.synonyms.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="font-fredoka text-xl text-gray-500">Similar words</h2>
-          <div className="flex flex-wrap gap-2">
-            {data.synonyms.map(syn => (
-              <Link
-                key={syn}
-                href={`/search/${encodeURIComponent(syn)}`}
-                className="bg-blue-100 hover:bg-blue-200 text-blue-700 font-nunito text-lg rounded-2xl px-4 py-1 transition-colors"
-              >
-                {syn}
-              </Link>
-            ))}
+        {data.examples.length > 0 && (
+          <div className="mt-6">
+            <h2 className="mb-2 font-fredoka text-xl font-bold">Examples</h2>
+            <ul className="space-y-2">
+              {data.examples.map((example, i) => (
+                <li
+                  key={i}
+                  className="rounded-lg border-l-4 border-sunshine bg-sunshine/10 px-4 py-2
+                             font-nunito text-lg"
+                >
+                  {example}
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+
+        {data.synonyms.length > 0 && (
+          <div className="mt-6">
+            <h2 className="mb-2 font-fredoka text-xl font-bold">Words that mean the same</h2>
+            <div className="flex flex-wrap gap-2">
+              {/* Each synonym is a link, so one lookup leads to the next. */}
+              {data.synonyms.map(synonym => (
+                <Link
+                  key={synonym}
+                  href={`/search/${encodeURIComponent(synonym)}`}
+                  className="rounded-full border-2 border-border bg-card px-4 py-2 font-nunito
+                             font-bold transition-all hover:border-primary hover:bg-primary/5"
+                >
+                  {synonym}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
