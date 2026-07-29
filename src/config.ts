@@ -92,6 +92,16 @@ export const config = {
     wordsKey: 'kd.words.v1',
     ageGroupKey: 'kd.ageGroup.v1',
   },
+
+  network: {
+    /**
+     * A hung outbound call (dictionary API, Gemini, Qwen) must degrade to
+     * null and let its step's cache-or-not rule apply, rather than eating
+     * the word route's own 60s budget — that would kill the request before
+     * the text is cached and make a slow word permanently uncacheable.
+     */
+    requestTimeoutMs: 20000,
+  },
 } as const
 
 /**

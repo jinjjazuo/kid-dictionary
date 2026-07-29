@@ -40,6 +40,7 @@ export class QwenTextProvider implements TextProvider {
           ],
           response_format: { type: 'json_object' },
         }),
+        signal: AbortSignal.timeout(config.network.requestTimeoutMs),
       })
       if (!res.ok) return null
       const data = await res.json()

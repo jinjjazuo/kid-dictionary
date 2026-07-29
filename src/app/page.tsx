@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { SearchBar } from '@/components/SearchBar'
 import { useWordStore } from '@/hooks/useWordStore'
+import { useAgeGroup } from '@/hooks/useAgeGroup'
 
 /** Words that reliably produce a good comic — a starting point for a child who cannot think of one. */
 const SUGGESTIONS = ['dinosaur', 'rainbow', 'adventure', 'curious']
@@ -14,6 +15,7 @@ const SUGGESTIONS = ['dinosaur', 'rainbow', 'adventure', 'curious']
  */
 export default function HomePage() {
   const { words, loading } = useWordStore()
+  const { ageGroup } = useAgeGroup()
 
   return (
     <main>
@@ -48,7 +50,7 @@ export default function HomePage() {
             {SUGGESTIONS.map(word => (
               <Link
                 key={word}
-                href={`/search/${word}`}
+                href={`/search/${word}?ageGroup=${ageGroup}`}
                 className="rounded-full border-2 border-border bg-card px-4 py-2 font-nunito
                            font-bold transition-all hover:border-primary hover:bg-primary/5"
               >

@@ -29,7 +29,9 @@ export class GeminiTextProvider implements TextProvider {
         systemInstruction: system,
         generationConfig: { responseMimeType: 'application/json' },
       })
-      const result = await model.generateContent(user)
+      const result = await model.generateContent(user, {
+        timeout: config.network.requestTimeoutMs,
+      })
       return result.response.text()
     } catch {
       // Rate limit, network failure, safety block. All are the same to the
@@ -103,7 +105,9 @@ export class GeminiImageProvider implements ImageProvider {
   async generateComic(prompt: string): Promise<Buffer | null> {
     try {
       const model = this.client.getGenerativeModel({ model: config.ai.gemini.imageModel })
-      const result = await model.generateContent(prompt)
+      const result = await model.generateContent(prompt, {
+        timeout: config.network.requestTimeoutMs,
+      })
 
       const parts = result.response.candidates?.[0]?.content?.parts ?? []
       for (const part of parts) {

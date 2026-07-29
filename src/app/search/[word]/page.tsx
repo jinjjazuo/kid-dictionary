@@ -12,7 +12,8 @@ import type { AgeGroup } from '@/types'
  *
  * The age group comes from the query string rather than localStorage because
  * this component cannot read localStorage. The header toggle writes the
- * preference; links carry it forward. Without one, the default applies.
+ * preference; the search bar, home page suggestions, and synonym links all
+ * carry it forward as `?ageGroup=`. Without one, the default applies.
  *
  * Next.js 14 App Router: params and searchParams are plain objects here, not
  * promises — no await needed (that's a Next 15 change).

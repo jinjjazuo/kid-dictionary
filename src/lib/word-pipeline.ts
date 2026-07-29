@@ -77,9 +77,12 @@ export async function lookupWord(word: string, ageGroup: AgeGroup): Promise<Word
 
   if (cached) return { found: true, data: dbRowToWordData(cached as DbRow) }
 
-  // 3. Validate the word exists before calling a paid model.
+  // 3. Validate the word exists before calling a paid model. An entry with
+  // an empty definition is treated the same as no entry — rendering it
+  // would produce a blank word page, and there is nothing for the AI step
+  // to enrich.
   const dict = await fetchWordFromDictionaryApi(normalised)
-  if (!dict) return { found: false }
+  if (!dict || !dict.rawDefinition) return { found: false }
 
   const base = {
     id: null,

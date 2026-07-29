@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 import { config } from '@/config'
 import { Button } from '@/components/ui/Button'
+import { useAgeGroup } from '@/hooks/useAgeGroup'
 
 /**
  * The primary entry point to the application.
@@ -14,12 +15,13 @@ import { Button } from '@/components/ui/Button'
 export function SearchBar({ initialValue = '' }: { initialValue?: string }) {
   const [value, setValue] = useState(initialValue)
   const router = useRouter()
+  const { ageGroup } = useAgeGroup()
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     const word = value.trim().toLowerCase()
     if (!word) return
-    router.push(`/search/${encodeURIComponent(word)}`)
+    router.push(`/search/${encodeURIComponent(word)}?ageGroup=${ageGroup}`)
   }
 
   return (

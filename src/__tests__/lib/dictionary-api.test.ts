@@ -74,4 +74,9 @@ describe('fetchWordFromDictionaryApi', () => {
 
     expect((await fetchWordFromDictionaryApi('x'))?.partOfSpeech).toBeNull()
   })
+
+  it('returns null instead of throwing when the network call rejects', async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error('network error')) as unknown as typeof fetch
+    await expect(fetchWordFromDictionaryApi('enormous')).resolves.toBeNull()
+  })
 })

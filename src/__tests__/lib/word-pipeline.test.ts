@@ -114,6 +114,15 @@ describe('lookupWord — validation', () => {
     expect(result.found).toBe(false)
     expect(mockEnrich).not.toHaveBeenCalled()
   })
+
+  it('stops before any AI call when the dictionary entry has no definition', async () => {
+    // An entry can exist with phonetics/synonyms but an empty definition
+    // string, which would otherwise render a blank word page.
+    mockFetchDict.mockResolvedValue({ ...DICT, rawDefinition: '' })
+    const result = await lookupWord('asdfgh', '4-6')
+    expect(result.found).toBe(false)
+    expect(mockEnrich).not.toHaveBeenCalled()
+  })
 })
 
 describe('lookupWord — degradation', () => {

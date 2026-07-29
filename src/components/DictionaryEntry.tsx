@@ -50,7 +50,7 @@ export function DictionaryEntry({ data }: { data: WordData }) {
               {data.synonyms.map(synonym => (
                 <Link
                   key={synonym}
-                  href={`/search/${encodeURIComponent(synonym)}`}
+                  href={`/search/${encodeURIComponent(synonym)}?ageGroup=${data.ageGroup}`}
                   className="rounded-full border-2 border-border bg-card px-4 py-2 font-nunito
                              font-bold transition-all hover:border-primary hover:bg-primary/5"
                 >
