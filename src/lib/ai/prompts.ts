@@ -1,5 +1,6 @@
 import { config } from '@/config'
 import type { AgeGroup, Scene } from '@/types'
+import type { WordContent } from './types'
 
 /**
  * Every prompt in the application, shared by all providers rather than
@@ -17,17 +18,26 @@ const AGE_DESCRIPTIONS: Record<AgeGroup, string> = {
 }
 
 /**
- * Sets the role and the vocabulary ceiling for enrichment.
+ * Sets the rules for the single combined content call: definition, examples
+ * and (when `sceneCount > 0`) the comic script, in one response.
  *
- * The ceiling is explicit because "use simple words" is not reliable — models
- * routinely reach for a harder word when it is more precise. The instruction
- * is to rephrase instead.
+ * Combined because the provider's free tier is metered per request — one call
+ * instead of two doubles the daily new-word capacity.
+ *
+ * The vocabulary ceiling is explicit because "use simple words" is not
+ * reliable — models routinely reach for a harder word when it is more
+ * precise. In the story, two constraints carry the pedagogy: the word must
+ * appear in every scene's text, and the meaning must be inferable from the
+ * scenes alone.
+ *
+ * `sceneCount: 0` (sensitive words) omits the story section entirely, so the
+ * model is never asked to illustrate what the app will not show.
  */
-export function enrichSystemPrompt(ageGroup: AgeGroup): string {
+export function wordContentSystemPrompt(ageGroup: AgeGroup, sceneCount: number): string {
   const audience = AGE_DESCRIPTIONS[ageGroup]
   const sentences = ageGroup === '4-6' ? 'exactly one short sentence' : 'one or two sentences'
 
-  return `You write dictionary definitions for ${audience}.
+  const definitionRules = `You write dictionary entries for ${audience}.
 
 Rules:
 - Use only words that ${audience} already knows. If you need a harder word to be precise, rephrase instead — never reach for the harder word.
@@ -39,32 +49,18 @@ Rules:
 
 For the word "enormous", these are the shapes to follow and avoid:
 GOOD: "The elephant at the zoo was enormous." — uses the word, and the setting hints at the meaning.
-BAD: "The dog is so big and tall." — the word never appears, so the child learns nothing.
+BAD: "The dog is so big and tall." — the word never appears, so the child learns nothing.`
+
+  if (sceneCount === 0) {
+    return `${definitionRules}
 
 Respond with JSON only, in this exact shape:
 {"definition": "...", "examples": ["...", "..."]}`
-}
+  }
 
-export function enrichUserPrompt(word: string, rawDefinition: string, ageGroup: AgeGroup): string {
-  return `Word: "${word}"
-Dictionary definition: "${rawDefinition}"
+  return `${definitionRules}
 
-Rewrite this for ${AGE_DESCRIPTIONS[ageGroup]}.`
-}
-
-/**
- * Sets the rules for the comic script.
- *
- * Two constraints carry the pedagogy: the word must appear in the text, and
- * the meaning must be inferable from the scenes alone. A child who cannot
- * read the definition should still understand the word from the pictures.
- */
-export function storySystemPrompt(ageGroup: AgeGroup): string {
-  const audience = AGE_DESCRIPTIONS[ageGroup]
-
-  return `You write short picture-book stories for ${audience}.
-
-Rules:
+You also write a short picture-book story for the same word, as numbered scenes:
 - Every scene must use the word naturally in its text. A story that never uses the word teaches nothing.
 - The scenes together must make the word's meaning obvious from context alone, without the definition.
 - Use the same character in every scene so the panels read as one story.
@@ -73,11 +69,74 @@ Rules:
 - Describe what can be seen. The scenes become drawings.
 
 Respond with JSON only, in this exact shape:
-[{"scene": 1, "text": "..."}, {"scene": 2, "text": "..."}]`
+{"definition": "...", "examples": ["...", "..."], "scenes": [{"scene": 1, "text": "..."}, {"scene": 2, "text": "..."}]}`
 }
 
-export function storyUserPrompt(word: string, sceneCount: number): string {
-  return `Write a ${sceneCount}-scene story that teaches the word "${word}".`
+export function wordContentUserPrompt(
+  word: string,
+  rawDefinition: string,
+  ageGroup: AgeGroup,
+  sceneCount: number,
+): string {
+  const base = `Word: "${word}"
+Dictionary definition: "${rawDefinition}"
+
+Rewrite this for ${AGE_DESCRIPTIONS[ageGroup]}.`
+
+  if (sceneCount === 0) return base
+
+  return `${base}
+Also write a ${sceneCount}-scene story that teaches the word "${word}".`
+}
+
+/**
+ * Validates a combined-call response into a WordContent, shared by every
+ * adapter so the shape rules live in one place.
+ *
+ * The definition is load-bearing: without it the response is worthless and
+ * the whole call fails (null). The story is not: a bad script only nulls
+ * `scenes`, keeping the text, because throwing away a good definition over a
+ * bad story would double the failure rate of the combined call.
+ *
+ * A script of the wrong length is unusable — the panel highlight overlay
+ * divides the image into `sceneCount` equal columns, so a mismatch would
+ * misalign every panel.
+ */
+export function parseWordContent(
+  raw: string,
+  word: string,
+  sceneCount: number,
+): WordContent | null {
+  const parsed = parseJsonResponse<{
+    definition?: string
+    examples?: string[]
+    scenes?: Scene[]
+  }>(raw)
+  if (!parsed?.definition) return null
+
+  // Examples that never use the word teach nothing, so they are dropped
+  // rather than shown. Filtering before the slice keeps a good example that
+  // the model listed after a bad one.
+  const examples = Array.isArray(parsed.examples)
+    ? keepExamplesUsingWord(parsed.examples, word).slice(0, config.word.maxExamples)
+    : []
+
+  return {
+    definition: parsed.definition,
+    examples,
+    scenes: validateScenes(parsed.scenes, sceneCount),
+  }
+}
+
+function validateScenes(scenes: Scene[] | undefined, sceneCount: number): Scene[] | null {
+  // No story requested: whatever the model sent must not become a comic.
+  if (sceneCount === 0) return []
+
+  if (!Array.isArray(scenes)) return null
+  if (scenes.length !== sceneCount) return null
+  if (!scenes.every(s => typeof s?.text === 'string' && s.text.length > 0)) return null
+
+  return scenes.map((s, i) => ({ scene: i + 1, text: s.text }))
 }
 
 /**

@@ -1,11 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { config } from '@/config'
-import type { AgeGroup, Scene } from '@/types'
-import type { Enrichment, ImageProvider, TextProvider } from './types'
+import type { AgeGroup } from '@/types'
+import type { ImageProvider, TextProvider, WordContent } from './types'
 import {
-  enrichSystemPrompt, enrichUserPrompt,
-  storySystemPrompt, storyUserPrompt,
-  parseJsonResponse, keepExamplesUsingWord,
+  wordContentSystemPrompt, wordContentUserPrompt, parseWordContent,
 } from './prompts'
 
 /**
@@ -40,52 +38,18 @@ export class GeminiTextProvider implements TextProvider {
     }
   }
 
-  async enrichWord(
+  async generateWordContent(
     word: string,
     rawDefinition: string,
     ageGroup: AgeGroup,
-  ): Promise<Enrichment | null> {
-    const raw = await this.generate(
-      enrichSystemPrompt(ageGroup),
-      enrichUserPrompt(word, rawDefinition, ageGroup),
-    )
-    if (!raw) return null
-
-    const parsed = parseJsonResponse<Partial<Enrichment>>(raw)
-    // Parseable but missing a definition is still a failure — caching a row
-    // with no definition would serve an empty page forever.
-    if (!parsed?.definition) return null
-
-    // Examples that never use the word teach nothing, so they are dropped
-    // rather than shown. Filtering before the slice keeps a good example that
-    // the model listed after a bad one.
-    return {
-      definition: parsed.definition,
-      examples: Array.isArray(parsed.examples)
-        ? keepExamplesUsingWord(parsed.examples, word).slice(0, config.word.maxExamples)
-        : [],
-    }
-  }
-
-  async generateStory(
-    word: string,
-    ageGroup: AgeGroup,
     sceneCount: number,
-  ): Promise<Scene[] | null> {
+  ): Promise<WordContent | null> {
     const raw = await this.generate(
-      storySystemPrompt(ageGroup),
-      storyUserPrompt(word, sceneCount),
+      wordContentSystemPrompt(ageGroup, sceneCount),
+      wordContentUserPrompt(word, rawDefinition, ageGroup, sceneCount),
     )
     if (!raw) return null
-
-    const parsed = parseJsonResponse<Scene[]>(raw)
-    if (!Array.isArray(parsed)) return null
-    // The panel highlight overlay divides the image into sceneCount equal
-    // columns, so a script of a different length would misalign every panel.
-    if (parsed.length !== sceneCount) return null
-    if (!parsed.every(s => typeof s?.text === 'string' && s.text.length > 0)) return null
-
-    return parsed.map((s, i) => ({ scene: i + 1, text: s.text }))
+    return parseWordContent(raw, word, sceneCount)
   }
 }
 

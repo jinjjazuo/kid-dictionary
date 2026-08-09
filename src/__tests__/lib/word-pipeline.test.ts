@@ -4,16 +4,14 @@ const {
   mockSingle,
   mockInsertSingle,
   mockFetchDict,
-  mockEnrich,
-  mockStory,
+  mockContent,
   mockComic,
   mockPut,
 } = vi.hoisted(() => ({
   mockSingle: vi.fn(),
   mockInsertSingle: vi.fn(),
   mockFetchDict: vi.fn(),
-  mockEnrich: vi.fn(),
-  mockStory: vi.fn(),
+  mockContent: vi.fn(),
   mockComic: vi.fn(),
   mockPut: vi.fn(),
 }))
@@ -30,7 +28,7 @@ vi.mock('@/lib/supabase/server', () => ({
 }))
 vi.mock('@/lib/dictionary-api', () => ({ fetchWordFromDictionaryApi: mockFetchDict }))
 vi.mock('@/lib/ai', () => ({
-  getTextProvider: () => ({ enrichWord: mockEnrich, generateStory: mockStory }),
+  getTextProvider: () => ({ generateWordContent: mockContent }),
   getImageProvider: () => ({ generateComic: mockComic }),
 }))
 vi.mock('@/lib/storage', () => ({ getImageStore: () => ({ put: mockPut }) }))
@@ -52,10 +50,13 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockSingle.mockResolvedValue({ data: null })
   mockFetchDict.mockResolvedValue(DICT)
-  mockEnrich.mockResolvedValue({ definition: 'Simple.', examples: ['An example.'] })
-  mockStory.mockResolvedValue([
-    { scene: 1, text: 'One.' }, { scene: 2, text: 'Two.' }, { scene: 3, text: 'Three.' },
-  ])
+  mockContent.mockResolvedValue({
+    definition: 'Simple.',
+    examples: ['An example.'],
+    scenes: [
+      { scene: 1, text: 'One.' }, { scene: 2, text: 'Two.' }, { scene: 3, text: 'Three.' },
+    ],
+  })
   mockComic.mockResolvedValue(Buffer.from('fake-png'))
   mockPut.mockResolvedValue('https://cdn.example/comic.webp')
   mockInsertSingle.mockImplementation(async () => ({
@@ -84,7 +85,7 @@ describe('lookupWord — cache', () => {
     if (result.found) expect(result.data.definition).toBe('Cached.')
     // The cache is the entire cost control. Any call past it on a hit is a bug.
     expect(mockFetchDict).not.toHaveBeenCalled()
-    expect(mockEnrich).not.toHaveBeenCalled()
+    expect(mockContent).not.toHaveBeenCalled()
     expect(mockComic).not.toHaveBeenCalled()
   })
 })
@@ -94,14 +95,15 @@ describe('lookupWord — safety', () => {
     const result = await lookupWord('porn', '4-6')
     expect(result.found).toBe(false)
     expect(mockFetchDict).not.toHaveBeenCalled()
-    expect(mockEnrich).not.toHaveBeenCalled()
+    expect(mockContent).not.toHaveBeenCalled()
   })
 
-  it('explains a sensitive word but generates no comic', async () => {
-    // The definition is the useful part. Only the illustration is withheld.
+  it('explains a sensitive word but asks for no story and draws no comic', async () => {
+    // The definition is the useful part. Only the illustration is withheld,
+    // and the model must not even be asked for scenes.
+    mockContent.mockResolvedValue({ definition: 'Simple.', examples: ['An example.'], scenes: [] })
     await lookupWord('death', '4-6')
-    expect(mockEnrich).toHaveBeenCalled()
-    expect(mockStory).not.toHaveBeenCalled()
+    expect(mockContent).toHaveBeenCalledWith('death', 'a raw definition', '4-6', 0)
     expect(mockComic).not.toHaveBeenCalled()
   })
 })
@@ -112,7 +114,7 @@ describe('lookupWord — validation', () => {
     mockFetchDict.mockResolvedValue(null)
     const result = await lookupWord('asdfgh', '4-6')
     expect(result.found).toBe(false)
-    expect(mockEnrich).not.toHaveBeenCalled()
+    expect(mockContent).not.toHaveBeenCalled()
   })
 
   it('stops before any AI call when the dictionary entry has no definition', async () => {
@@ -121,13 +123,13 @@ describe('lookupWord — validation', () => {
     mockFetchDict.mockResolvedValue({ ...DICT, rawDefinition: '' })
     const result = await lookupWord('asdfgh', '4-6')
     expect(result.found).toBe(false)
-    expect(mockEnrich).not.toHaveBeenCalled()
+    expect(mockContent).not.toHaveBeenCalled()
   })
 })
 
 describe('lookupWord — degradation', () => {
-  it('falls back to the raw definition and does not cache when enrichment fails', async () => {
-    mockEnrich.mockResolvedValue(null)
+  it('falls back to the raw definition and does not cache when the text call fails', async () => {
+    mockContent.mockResolvedValue(null)
     const result = await lookupWord('dinosaur', '4-6')
 
     expect(result.found).toBe(true)
@@ -140,8 +142,8 @@ describe('lookupWord — degradation', () => {
     expect(mockInsertSingle).not.toHaveBeenCalled()
   })
 
-  it('keeps the definition and does not cache when the story fails', async () => {
-    mockStory.mockResolvedValue(null)
+  it('keeps the definition and does not cache when only the story part fails', async () => {
+    mockContent.mockResolvedValue({ definition: 'Simple.', examples: ['An example.'], scenes: null })
     const result = await lookupWord('dinosaur', '4-6')
 
     expect(result.found).toBe(true)
@@ -176,9 +178,10 @@ describe('lookupWord — success', () => {
     expect(mockPut).toHaveBeenCalled()
   })
 
-  it('asks for the scene count matching the age group', async () => {
+  it('asks for the scene count matching the age group in one call', async () => {
     await lookupWord('dinosaur', '7-10')
-    expect(mockStory).toHaveBeenCalledWith('dinosaur', '7-10', 5)
+    expect(mockContent).toHaveBeenCalledWith('dinosaur', 'a raw definition', '7-10', 5)
+    expect(mockContent).toHaveBeenCalledTimes(1)
   })
 
   it('normalises the word before doing anything', async () => {

@@ -1,10 +1,8 @@
 import { config } from '@/config'
-import type { AgeGroup, Scene } from '@/types'
-import type { Enrichment, TextProvider } from './types'
+import type { AgeGroup } from '@/types'
+import type { TextProvider, WordContent } from './types'
 import {
-  enrichSystemPrompt, enrichUserPrompt,
-  storySystemPrompt, storyUserPrompt,
-  parseJsonResponse, keepExamplesUsingWord,
+  wordContentSystemPrompt, wordContentUserPrompt, parseWordContent,
 } from './prompts'
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
@@ -50,50 +48,17 @@ export class QwenTextProvider implements TextProvider {
     }
   }
 
-  async enrichWord(
+  async generateWordContent(
     word: string,
     rawDefinition: string,
     ageGroup: AgeGroup,
-  ): Promise<Enrichment | null> {
-    const raw = await this.generate(
-      enrichSystemPrompt(ageGroup),
-      enrichUserPrompt(word, rawDefinition, ageGroup),
-    )
-    if (!raw) return null
-
-    const parsed = parseJsonResponse<Partial<Enrichment>>(raw)
-    if (!parsed?.definition) return null
-
-    // Examples that never use the word teach nothing, so they are dropped
-    // rather than shown. Filtering before the slice keeps a good example that
-    // the model listed after a bad one.
-    return {
-      definition: parsed.definition,
-      examples: Array.isArray(parsed.examples)
-        ? keepExamplesUsingWord(parsed.examples, word).slice(0, config.word.maxExamples)
-        : [],
-    }
-  }
-
-  async generateStory(
-    word: string,
-    ageGroup: AgeGroup,
     sceneCount: number,
-  ): Promise<Scene[] | null> {
+  ): Promise<WordContent | null> {
     const raw = await this.generate(
-      storySystemPrompt(ageGroup),
-      storyUserPrompt(word, sceneCount),
+      wordContentSystemPrompt(ageGroup, sceneCount),
+      wordContentUserPrompt(word, rawDefinition, ageGroup, sceneCount),
     )
     if (!raw) return null
-
-    // json_object mode forbids a bare array at the top level, so Qwen wraps
-    // it. Accept either shape.
-    const parsed = parseJsonResponse<Scene[] | { scenes?: Scene[] }>(raw)
-    const scenes = Array.isArray(parsed) ? parsed : parsed?.scenes
-    if (!Array.isArray(scenes)) return null
-    if (scenes.length !== sceneCount) return null
-    if (!scenes.every(s => typeof s?.text === 'string' && s.text.length > 0)) return null
-
-    return scenes.map((s, i) => ({ scene: i + 1, text: s.text }))
+    return parseWordContent(raw, word, sceneCount)
   }
 }

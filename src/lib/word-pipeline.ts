@@ -94,9 +94,18 @@ export async function lookupWord(word: string, ageGroup: AgeGroup): Promise<Word
     textVersion: config.content.textVersion,
   }
 
-  // 4. Enrich. On failure, show the raw dictionary text and do not cache.
-  const enriched = await getTextProvider().enrichWord(normalised, dict.rawDefinition, ageGroup)
-  if (!enriched) {
+  // 4-5. One combined text call: definition, examples and (for non-sensitive
+  // words) the story script. A single request instead of two, because the
+  // text provider's free tier is metered per request. On total failure, show
+  // the raw dictionary text and do not cache.
+  const { sceneCount } = getAgeGroupConfig(ageGroup)
+  const content = await getTextProvider().generateWordContent(
+    normalised,
+    dict.rawDefinition,
+    ageGroup,
+    allowComic ? sceneCount : 0,
+  )
+  if (!content) {
     return {
       found: true,
       data: {
@@ -111,24 +120,23 @@ export async function lookupWord(word: string, ageGroup: AgeGroup): Promise<Word
 
   const withText = {
     ...base,
-    definition: enriched.definition,
-    examples: enriched.examples,
+    definition: content.definition,
+    examples: content.examples,
   }
 
-  // 5. Story. Skipped entirely for sensitive words.
-  const { sceneCount } = getAgeGroupConfig(ageGroup)
-  const storyScript = allowComic
-    ? await getTextProvider().generateStory(normalised, ageGroup, sceneCount)
-    : []
-
-  if (allowComic && !storyScript) {
+  // scenes === null means the story part of the response was unusable while
+  // the text was fine. Serve the text but do not cache, so a retry can still
+  // produce the comic.
+  if (content.scenes === null) {
     return { found: true, data: { ...withText, storyScript: [], comicImageUrl: null } }
   }
+
+  const storyScript = content.scenes
 
   // 6-8. Comic: generate, compress, upload. Any failure yields a null URL,
   // which still caches.
   const comicImageUrl =
-    allowComic && storyScript && storyScript.length > 0
+    storyScript.length > 0
       ? await generateComicUrl(normalised, ageGroup, storyScript)
       : null
 
@@ -138,12 +146,12 @@ export async function lookupWord(word: string, ageGroup: AgeGroup): Promise<Word
     .insert({
       word: normalised,
       age_group: ageGroup,
-      definition: enriched.definition,
+      definition: content.definition,
       part_of_speech: dict.partOfSpeech,
-      examples: enriched.examples,
+      examples: content.examples,
       synonyms: dict.synonyms,
       phonetic: dict.phonetic,
-      story_script: storyScript ?? [],
+      story_script: storyScript,
       comic_image_url: comicImageUrl,
       text_version: config.content.textVersion,
       image_version: config.content.imageVersion,
@@ -157,7 +165,7 @@ export async function lookupWord(word: string, ageGroup: AgeGroup): Promise<Word
   // won the unique constraint. Serve what was generated rather than erroring.
   return {
     found: true,
-    data: { ...withText, storyScript: storyScript ?? [], comicImageUrl },
+    data: { ...withText, storyScript, comicImageUrl },
   }
 }
 

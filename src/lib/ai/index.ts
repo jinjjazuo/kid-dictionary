@@ -3,7 +3,7 @@ import { GeminiImageProvider, GeminiTextProvider } from './gemini'
 import { QwenTextProvider } from './qwen'
 import type { ImageProvider, TextProvider } from './types'
 
-export type { Enrichment, ImageProvider, TextProvider } from './types'
+export type { ImageProvider, TextProvider, WordContent } from './types'
 
 /**
  * Selects the text provider from the AI_PROVIDER environment variable.
