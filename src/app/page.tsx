@@ -12,14 +12,19 @@ const SUGGESTIONS = ['decision', 'rainbow', 'adventure', 'curious']
  * A client component because the stats strip reads the collection. The hero
  * and search bar render identically on server and client, so only the strip
  * waits on `loading`.
+ *
+ * The hero grows to fill whatever the window leaves over (`flex-1`, against
+ * the column layout on `body`), which pins the stats strip to the bottom
+ * edge. Without that the strip stops wherever the content happens to end and
+ * sits mid-screen above a band of empty background.
  */
 export default function HomePage() {
   const { words, loading } = useWordStore()
   const { ageGroup } = useAgeGroup()
 
   return (
-    <main>
-      <section className="relative overflow-hidden">
+    <main className="flex flex-1 flex-col">
+      <section className="relative flex flex-1 flex-col justify-center overflow-hidden">
         <div className="pointer-events-none absolute inset-0" aria-hidden="true">
           <div className="absolute left-10 top-10 h-16 w-16 rounded-full bg-sunshine/30 animate-float" />
           <div className="absolute right-20 top-32 h-12 w-12 rounded-full bg-coral/30 animate-bounce-soft" />
@@ -62,7 +67,7 @@ export default function HomePage() {
       </section>
 
       {!loading && words.length > 0 && (
-        <section className="border-t-2 border-border bg-card/50">
+        <section className="border-t-2 border-border bg-card/50" aria-label="Your collection">
           <div className="container mx-auto flex flex-wrap items-center justify-center gap-8 px-4 py-8">
             <div>
               <p className="font-fredoka text-3xl font-bold text-primary">{words.length}</p>

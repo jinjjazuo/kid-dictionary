@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${fredoka.variable} ${nunito.variable} font-nunito min-h-screen`}>
+      <body className={`${fredoka.variable} ${nunito.variable} font-nunito flex min-h-screen flex-col`}>
         <Header />
         {children}
       </body>
