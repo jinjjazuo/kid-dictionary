@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { SearchBar } from '@/components/SearchBar'
+import { Onboarding } from '@/components/onboarding/Onboarding'
 import { useWordStore } from '@/hooks/useWordStore'
 import { useAgeGroup } from '@/hooks/useAgeGroup'
 
@@ -81,6 +82,8 @@ export default function HomePage() {
           </div>
         </section>
       )}
+
+      <Onboarding />
     </main>
   )
 }

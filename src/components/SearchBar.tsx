@@ -25,7 +25,7 @@ export function SearchBar({ initialValue = '' }: { initialValue?: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto flex w-full max-w-xl gap-2">
+    <form onSubmit={handleSubmit} data-tour="search" className="mx-auto flex w-full max-w-xl gap-2">
       <input
         type="text"
         value={value}

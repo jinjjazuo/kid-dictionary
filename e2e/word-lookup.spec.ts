@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { failOnConsoleErrors } from './fixtures'
+import { failOnConsoleErrors, skipOnboarding } from './fixtures'
 
 test.describe('word lookup', () => {
   test('searching a word shows its definition and saves it', async ({ page }) => {
@@ -12,7 +12,7 @@ test.describe('word lookup', () => {
     const errors: string[] = []
     failOnConsoleErrors(page, errors)
 
-    await page.goto('/')
+    await skipOnboarding(page)
     await page.getByLabel('Search for a word').fill('enormous')
     await page.getByRole('button', { name: 'Look up' }).click()
 
@@ -43,7 +43,7 @@ test.describe('word lookup', () => {
       await route.continue()
     })
 
-    await page.goto('/')
+    await skipOnboarding(page)
     await page.getByLabel('Search for a word').fill('enormous')
     await page.getByRole('button', { name: 'Look up' }).click()
 

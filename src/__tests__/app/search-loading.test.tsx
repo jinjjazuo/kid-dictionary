@@ -1,15 +1,22 @@
-import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
 import Loading from '@/app/search/[word]/loading'
 
-describe('word page loading state', () => {
-  it('announces that the lookup is in progress', () => {
-    // role="status" rather than plain text: the search bar keeps focus
-    // across the navigation, so without a live region a child using a
-    // screen reader hears nothing at all for the ten seconds a cache miss
-    // takes, which is the exact problem this screen exists to solve.
+/**
+ * The loading fallback is what makes clicking "Look up" feel responsive.
+ *
+ * Without a loading.tsx in this segment, the App Router holds the old page on
+ * screen for the whole server render — on a cache miss that is the dictionary
+ * API plus two AI calls — and the click appears to do nothing.
+ */
+describe('search loading fallback', () => {
+  it('announces itself to assistive technology', () => {
     render(<Loading />)
+    expect(screen.getByRole('status')).toBeInTheDocument()
+  })
 
-    expect(screen.getByRole('status')).toHaveTextContent(/looking up/i)
+  it('tells the reader the word is on its way', () => {
+    render(<Loading />)
+    expect(screen.getByRole('status')).toHaveAccessibleName(/looking up your word/i)
   })
 })

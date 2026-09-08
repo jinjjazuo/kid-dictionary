@@ -124,12 +124,35 @@ refreshed from the cache later.
 - `'7-10'` = older readers (5 comic panels, richer language)
 
 With no accounts, the selected age group lives in localStorage under
-`config.storage.ageGroupKey`, defaulting to `'4-6'`. It is a header toggle, not an
-onboarding step — a visitor can search immediately.
+`config.storage.ageGroupKey`, defaulting to `'4-6'`. A first-time visitor is asked
+once, by the onboarding picker below; after that it is a header toggle, so a parent
+can change the level for a different reader without clearing browser data.
 
 Changing it does not rewrite saved words. Each `SavedWord` records the age group it was
 generated for, so a collection may contain both bands. The dictionary shows all of them;
 the setting only affects new lookups.
+
+### First launch
+`src/components/onboarding/` runs once per browser, mounted on the home page only:
+the age picker, then a three-step tour of the search bar, My Words and the games.
+
+The picker asks "How old are you?" and shows every age from
+`ageGroups.young.minAge` to `ageGroups.older.maxAge`, because a five-year-old knows
+their age and not which band they read at. `ageGroupForAge()` maps the answer, so
+the bands stay an internal detail — which means they must remain adjacent and
+gapless, or an age on screen maps nowhere sensible.
+`config.storage.onboardingKey` records that it is done — bump that key's version to
+replay onboarding for everyone, which is the only way an existing visitor sees a
+newly added step.
+
+Tour steps find their targets through `data-tour` attributes in the markup rather
+than through refs or class names, so restyling a component cannot silently detach
+the step pointing at it. A step whose anchor has gone missing ends the tour instead
+of stalling — a dimmed screen with nothing to click is the one state a child cannot
+get out of.
+
+E2E specs that drive the home page must call `skipOnboarding()` from `e2e/fixtures`,
+or the overlay swallows their clicks. `seedWords()` already does.
 
 ### Provider abstraction
 AI providers sit behind `TextProvider` and `ImageProvider` interfaces in `src/lib/ai/`.

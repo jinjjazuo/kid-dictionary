@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { config, getAgeGroupConfig } from '@/config'
+import { config, getAgeGroupConfig, ageGroupForAge, pickableAges } from '@/config'
 
 describe('config', () => {
   it('has two age groups with different scene counts', () => {
@@ -12,6 +12,30 @@ describe('config', () => {
   it('resolves an age group to its scene count', () => {
     expect(getAgeGroupConfig('4-6').sceneCount).toBe(3)
     expect(getAgeGroupConfig('7-10').sceneCount).toBe(5)
+  })
+
+  it('covers every pickable age with exactly one group', () => {
+    // The picker asks a child their age and maps it here. A gap would leave a
+    // real child with no button to press; an overlap would make the mapping
+    // depend on which branch runs first.
+    const ages = pickableAges()
+    expect(ages).toEqual([4, 5, 6, 7, 8, 9, 10])
+    expect(ages.map(ageGroupForAge)).toEqual([
+      '4-6', '4-6', '4-6', '7-10', '7-10', '7-10', '7-10',
+    ])
+  })
+
+  it('resolves an age outside the pickable range to the nearest group', () => {
+    // Nothing in the UI can produce these, but the bands are the app's only
+    // definition of what a reading level means, so they have to answer.
+    expect(ageGroupForAge(2)).toBe('4-6')
+    expect(ageGroupForAge(14)).toBe('7-10')
+  })
+
+  it('derives the pickable ages from the group bounds, not a literal list', () => {
+    // Widening a band must widen the picker with it.
+    expect(pickableAges()[0]).toBe(config.ageGroups.young.minAge)
+    expect(pickableAges().at(-1)).toBe(config.ageGroups.older.maxAge)
   })
 
   it('tracks content versions independently', () => {

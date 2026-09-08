@@ -9,9 +9,20 @@
 export type AgeGroup = '4-6' | '7-10'
 
 export const config = {
+  /**
+   * The two reading levels, with the ages each one covers.
+   *
+   * The bands must stay adjacent and gapless — `young.maxAge + 1` is
+   * `older.minAge` — because the picker offers every age between the outer
+   * bounds and `ageGroupForAge` splits them at the young band's top. A gap
+   * would leave a real child with a button that maps nowhere sensible.
+   *
+   * The labels are DB check constraints. Widening a band is safe; renaming a
+   * label is not.
+   */
   ageGroups: {
-    young: { label: '4-6' as AgeGroup, sceneCount: 3 },
-    older: { label: '7-10' as AgeGroup, sceneCount: 5 },
+    young: { label: '4-6' as AgeGroup, sceneCount: 3, minAge: 4, maxAge: 6 },
+    older: { label: '7-10' as AgeGroup, sceneCount: 5, minAge: 7, maxAge: 10 },
   },
 
   /** Used when a visitor has not chosen an age group. */
@@ -91,6 +102,12 @@ export const config = {
     /** Versioned so a future shape change cannot crash returning users. */
     wordsKey: 'kd.words.v1',
     ageGroupKey: 'kd.ageGroup.v1',
+    /**
+     * Set once the first-launch age picker and tour have been dismissed.
+     * Versioned like the others: bumping it re-runs onboarding for everyone,
+     * which is the only way to reintroduce a tour step to existing visitors.
+     */
+    onboardingKey: 'kd.onboarded.v1',
   },
 
   network: {
@@ -125,4 +142,31 @@ export const config = {
  */
 export function getAgeGroupConfig(ageGroup: AgeGroup) {
   return ageGroup === '7-10' ? config.ageGroups.older : config.ageGroups.young
+}
+
+/**
+ * Maps a child's own answer to "How old are you?" onto a reading level.
+ *
+ * Onboarding asks for an age rather than a band because a five-year-old knows
+ * how old they are and has no idea which of two ranges they belong to. The
+ * bands are adjacent, so the young group's upper bound is the only boundary
+ * this needs — an age past the older band still resolves to it rather than to
+ * nothing.
+ */
+export function ageGroupForAge(age: number): AgeGroup {
+  return age <= config.ageGroups.young.maxAge
+    ? config.ageGroups.young.label
+    : config.ageGroups.older.label
+}
+
+/**
+ * Every age the picker offers, ascending.
+ *
+ * Derived from the band bounds rather than written out, so widening a band
+ * widens the picker with it and cannot strand an age with no button to press.
+ */
+export function pickableAges(): number[] {
+  const { minAge } = config.ageGroups.young
+  const { maxAge } = config.ageGroups.older
+  return Array.from({ length: maxAge - minAge + 1 }, (_, index) => minAge + index)
 }

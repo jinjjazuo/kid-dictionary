@@ -1,50 +1,46 @@
 import { Card, CardContent } from '@/components/ui/Card'
 
-/** Staggers the three dots so they read as a wave rather than one blinking blob. */
-const DOT_DELAYS = ['0s', '0.2s', '0.4s']
-
 /**
- * Shown while the word page's server component awaits `lookupWord`.
+ * Instant feedback for the search segment.
  *
- * Next.js streams this the moment the navigation starts, so the screen
- * changes on click instead of freezing on the search box. Without it a cache
- * miss — two model calls plus image compression, around ten seconds — leaves
- * a child looking at an unchanged page with no evidence their word was heard,
- * and the usual response is to press "Look up" again.
+ * The App Router only reveals a pending navigation when the segment has a
+ * loading boundary. Without this file the router holds the previous page on
+ * screen for the whole server render — dictionary API, then the text model,
+ * then the comic model — so a tap on "Look up" looks like it did nothing and
+ * children tap it again.
  *
- * It cannot name the word being looked up: Next does not pass route params to
- * a loading boundary. The copy is deliberately generic for that reason.
- *
- * This file must stay a server component with no hooks or data access. A
- * loading boundary that suspends on anything of its own would defeat the point
- * by delaying the very feedback it exists to give.
+ * The skeleton mirrors DictionaryEntry and ComicStrip so the real content
+ * does not shift the layout when it replaces this.
  */
 export default function Loading() {
   return (
-    <main className="container mx-auto max-w-2xl px-4 py-16">
-      <Card>
-        <CardContent className="flex flex-col items-center py-12 text-center">
-          <div role="status" className="flex flex-col items-center">
-            <span className="mb-6 text-6xl animate-bounce-soft" aria-hidden="true">
-              🎨
-            </span>
-            <h1 className="mb-2 font-fredoka text-3xl font-bold">Looking up your word!</h1>
-            <p className="font-nunito text-lg text-muted-foreground">
-              We&apos;re writing what it means and drawing your comic.
-            </p>
-          </div>
+    <main className="container mx-auto max-w-2xl px-4 py-8">
+      <div role="status" aria-label="Looking up your word">
+        <p className="mb-6 flex items-center justify-center gap-2 text-center font-fredoka
+                      text-2xl font-bold text-primary">
+          Looking up your word
+          {/* Staggered so the three dots read as a wave rather than a blink. */}
+          {[0, 0.2, 0.4].map(delay => (
+            <span
+              key={delay}
+              className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce-soft"
+              style={{ animationDelay: `${delay}s`, animationDuration: '1s' }}
+            />
+          ))}
+        </p>
 
-          <div className="mt-8 flex gap-2" aria-hidden="true">
-            {DOT_DELAYS.map(delay => (
-              <span
-                key={delay}
-                className="h-3 w-3 rounded-full bg-primary animate-bounce-soft"
-                style={{ animationDelay: delay }}
-              />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardContent className="animate-pulse">
+            <div className="mb-3 h-11 w-2/5 rounded-lg bg-muted" />
+            <div className="mb-6 h-5 w-1/4 rounded bg-muted" />
+            <div className="mb-2 h-6 w-full rounded bg-muted" />
+            <div className="h-6 w-4/5 rounded bg-muted" />
+          </CardContent>
+        </Card>
+
+        <div className="mt-8 aspect-[3/2] w-full animate-pulse rounded-2xl border-2
+                        border-border bg-muted" />
+      </div>
     </main>
   )
 }

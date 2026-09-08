@@ -29,15 +29,18 @@ export function Header() {
         </Link>
 
         <nav className="flex items-center gap-1 font-nunito font-bold">
-          <Link href="/dictionary" className="rounded-lg px-3 py-2 hover:bg-muted">
+          <Link href="/dictionary" data-tour="collection" className="rounded-lg px-3 py-2 hover:bg-muted">
             My Words
           </Link>
-          <Link href="/games/quiz" className="rounded-lg px-3 py-2 hover:bg-muted">
-            Quiz
-          </Link>
-          <Link href="/games/crossword" className="rounded-lg px-3 py-2 hover:bg-muted">
-            Crossword
-          </Link>
+          {/* Wrapped so the tour can spotlight both games as one target. */}
+          <span data-tour="games" className="flex items-center gap-1">
+            <Link href="/games/quiz" className="rounded-lg px-3 py-2 hover:bg-muted">
+              Quiz
+            </Link>
+            <Link href="/games/crossword" className="rounded-lg px-3 py-2 hover:bg-muted">
+              Crossword
+            </Link>
+          </span>
         </nav>
 
         <div
