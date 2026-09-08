@@ -33,6 +33,23 @@ test.describe('word lookup', () => {
     expect(errors).toEqual([])
   })
 
+  test('shows a loading screen the moment Look up is clicked', async ({ page }) => {
+    // The lookup is delayed deliberately. A word already in the cache can
+    // answer in under a second, which would leave this assertion racing the
+    // response; what is under test is that the screen changes at all, not how
+    // long it stays changed.
+    await page.route('**/search/**', async route => {
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      await route.continue()
+    })
+
+    await page.goto('/')
+    await page.getByLabel('Search for a word').fill('enormous')
+    await page.getByRole('button', { name: 'Look up' }).click()
+
+    await expect(page.getByRole('status')).toContainText(/looking up/i)
+  })
+
   test('an unknown word shows the friendly message', async ({ page }) => {
     await page.goto('/search/qwertyuiopasdf')
     await expect(page.getByText(/don't know that word/i)).toBeVisible({ timeout: 30_000 })

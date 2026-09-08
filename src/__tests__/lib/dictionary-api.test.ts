@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { fetchWordFromDictionaryApi } from '@/lib/dictionary-api'
+import { config } from '@/config'
 
 const mockFetch = vi.fn()
 global.fetch = mockFetch
@@ -78,5 +79,20 @@ describe('fetchWordFromDictionaryApi', () => {
   it('returns null instead of throwing when the network call rejects', async () => {
     global.fetch = vi.fn().mockRejectedValue(new Error('network error')) as unknown as typeof fetch
     await expect(fetchWordFromDictionaryApi('enormous')).resolves.toBeNull()
+  })
+
+  it('aborts on the dictionary budget, not the AI one', async () => {
+    // The upstream hangs on unknown words, so this timeout is what a child
+    // actually waits through after a misspelling. Sharing requestTimeoutMs
+    // with Gemini made that wait 20 seconds.
+    const timeout = vi.spyOn(AbortSignal, 'timeout')
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 404 }) as unknown as typeof fetch
+
+    await fetchWordFromDictionaryApi('zzqqxwvfake')
+
+    expect(timeout).toHaveBeenCalledWith(config.network.dictionaryTimeoutMs)
+    timeout.mockRestore()
   })
 })

@@ -95,12 +95,24 @@ export const config = {
 
   network: {
     /**
-     * A hung outbound call (dictionary API, Gemini, Qwen) must degrade to
-     * null and let its step's cache-or-not rule apply, rather than eating
-     * the word route's own 60s budget — that would kill the request before
-     * the text is cached and make a slow word permanently uncacheable.
+     * A hung AI call (Gemini, Qwen) must degrade to null and let its step's
+     * cache-or-not rule apply, rather than eating the word route's own 60s
+     * budget — that would kill the request before the text is cached and make
+     * a slow word permanently uncacheable.
      */
     requestTimeoutMs: 20000,
+    /**
+     * dictionaryapi.dev does not answer an unknown word with a 404: the
+     * request hangs until Cloudflare gives up with a 522 at around 20s. A word
+     * that exists answers in about 130ms, so this budget expires only on a
+     * lookup that was going to fail anyway.
+     *
+     * It is deliberately not requestTimeoutMs. A generation call needs the
+     * full 20s, and sharing one number made every misspelling — the most
+     * likely input from a four-year-old — cost 20 seconds of spinner before
+     * "Hmm, we don't know that word!".
+     */
+    dictionaryTimeoutMs: 3000,
   },
 } as const
 

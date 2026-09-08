@@ -3,6 +3,16 @@ import { config } from '@/config'
 
 const API_BASE = 'https://api.dictionaryapi.dev/api/v2/entries/en'
 
+/**
+ * Fetches the raw dictionary entry that gates every billable step.
+ *
+ * Returns null for anything unusable — 404, hang, malformed payload — because
+ * the pipeline treats "no entry" as "word not found" and stops there, so an
+ * upstream outage costs a wrong answer rather than a crashed word page.
+ *
+ * Uses dictionaryTimeoutMs, not the AI timeout: this call is what a child
+ * waits through after a typo, and the upstream hangs instead of 404ing.
+ */
 export async function fetchWordFromDictionaryApi(
   word: string
 ): Promise<DictionaryApiResult | null> {
@@ -14,7 +24,7 @@ export async function fetchWordFromDictionaryApi(
   // not crash the word page.
   try {
     const res = await fetch(`${API_BASE}/${encodeURIComponent(trimmed)}`, {
-      signal: AbortSignal.timeout(config.network.requestTimeoutMs),
+      signal: AbortSignal.timeout(config.network.dictionaryTimeoutMs),
     })
 
     if (!res.ok) return null

@@ -6,7 +6,7 @@ import { useWordStore } from '@/hooks/useWordStore'
 import { useAgeGroup } from '@/hooks/useAgeGroup'
 
 /** Words that reliably produce a good comic — a starting point for a child who cannot think of one. */
-const SUGGESTIONS = ['dinosaur', 'rainbow', 'adventure', 'curious']
+const SUGGESTIONS = ['decision', 'rainbow', 'adventure', 'curious']
 
 /**
  * A client component because the stats strip reads the collection. The hero
