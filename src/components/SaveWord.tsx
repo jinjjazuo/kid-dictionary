@@ -37,6 +37,7 @@ export function SaveWord({ data }: { data: WordData }) {
       synonyms: data.synonyms,
       phonetic: data.phonetic,
       comicImageUrl: data.comicImageUrl,
+      audioUrl: data.audioUrl,
       ageGroup: data.ageGroup,
       textVersion: data.textVersion,
       addedAt: new Date().toISOString(),

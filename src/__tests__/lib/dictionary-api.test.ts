@@ -5,94 +5,123 @@ import { config } from '@/config'
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
+/** One kaikki JSONL line: a single part of speech for a word. */
+function posLine(over: Record<string, unknown> = {}) {
+  return JSON.stringify({
+    word: 'rainbow',
+    pos: 'noun',
+    sounds: [
+      { ipa: '/ˈɹeɪnboʊ/', tags: ['General-American'] },
+      { enpr: "rān'bō" },
+      { audio: 'En-us-rainbow.ogg', ogg_url: 'https://x/a.ogg', mp3_url: 'https://x/a.mp3' },
+    ],
+    senses: [{ glosses: ['A multicoloured arch in the sky.'], synonyms: [{ word: 'iris' }] }],
+    synonyms: [{ word: 'spectrum' }],
+    ...over,
+  })
+}
+
+const ok = (body: string) => ({ ok: true, status: 200, text: async () => body })
+
+beforeEach(() => { mockFetch.mockReset() })
+
 describe('fetchWordFromDictionaryApi', () => {
-  beforeEach(() => { mockFetch.mockReset() })
+  it('shards the url by first letter and first two letters', async () => {
+    mockFetch.mockResolvedValue(ok(posLine()))
+    await fetchWordFromDictionaryApi('rainbow')
 
-  it('returns null for a 404 response', async () => {
-    mockFetch.mockResolvedValue({ ok: false, status: 404 })
-    const result = await fetchWordFromDictionaryApi('xyzabc123')
-    expect(result).toBeNull()
+    const [url, init] = mockFetch.mock.calls[0]
+    expect(url).toBe(`${config.dictionary.baseUrl}/r/ra/rainbow.jsonl`)
+    // Wikimedia 403s an audio request with no User-Agent; send one everywhere.
+    expect(init.headers['User-Agent']).toBe(config.dictionary.userAgent)
   })
 
-  it('parses definition, phonetic, audio, and synonyms', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ([{
-        word: 'enormous',
-        phonetics: [
-          { text: '/ɪˈnɔːməs/', audio: 'https://api.example.com/enormous.mp3' }
-        ],
-        meanings: [{
-          definitions: [{ definition: 'Very large in size or quantity.', synonyms: ['huge', 'vast'] }],
-          synonyms: ['gigantic']
-        }]
-      }])
-    })
-    const result = await fetchWordFromDictionaryApi('enormous')
+  it('pulls the gloss, ipa, synonyms and mp3 out of a line', async () => {
+    mockFetch.mockResolvedValue(ok(posLine()))
+    const result = await fetchWordFromDictionaryApi('rainbow')
+
     expect(result).not.toBeNull()
-    expect(result!.rawDefinition).toBe('Very large in size or quantity.')
-    expect(result!.phonetic).toBe('/ɪˈnɔːməs/')
-    expect(result!.synonyms).toContain('huge')
+    expect(result!.rawDefinition).toBe('A multicoloured arch in the sky.')
+    expect(result!.partOfSpeech).toBe('noun')
+    expect(result!.phonetic).toBe('/ˈɹeɪnboʊ/')
+    expect(result!.audioUrl).toBe('https://x/a.mp3')
+    expect(result!.synonyms).toContain('iris')
   })
 
-  it('handles missing phonetic gracefully', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ([{
-        word: 'test',
-        phonetics: [],
-        meanings: [{ definitions: [{ definition: 'A procedure.', synonyms: [] }], synonyms: [] }]
-      }])
-    })
-    const result = await fetchWordFromDictionaryApi('test')
-    expect(result!.phonetic).toBeNull()
-  })
-
-  it('returns the part of speech from the first meaning', async () => {
-    // Drives the badge colour on every word card.
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ([{
-        word: 'enormous',
-        phonetics: [{ text: '/ɪˈnɔːməs/' }],
-        meanings: [{
-          partOfSpeech: 'adjective',
-          definitions: [{ definition: 'very large in size' }],
-          synonyms: ['huge', 'massive'],
-        }],
-      }]),
-    }) as unknown as typeof fetch
-
+  it('skips senses Wiktionary marks obsolete', async () => {
+    // Wiktionary orders senses historically, so 'enormous' opens with a sense
+    // no child will ever meet. Taking senses[0] would define it as "unusual".
+    mockFetch.mockResolvedValue(ok(posLine({
+      senses: [
+        { glosses: ['Deviating from the norm; unusual.'], tags: ['obsolete'] },
+        { glosses: ['Extremely large.'] },
+      ],
+    })))
     const result = await fetchWordFromDictionaryApi('enormous')
-    expect(result?.partOfSpeech).toBe('adjective')
+    expect(result!.rawDefinition).toBe('Extremely large.')
   })
 
-  it('returns a null part of speech when the entry has none', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ([{ word: 'x', meanings: [{ definitions: [{ definition: 'a thing' }] }] }]),
-    }) as unknown as typeof fetch
-
-    expect((await fetchWordFromDictionaryApi('x'))?.partOfSpeech).toBeNull()
+  it('falls back to a filtered sense rather than calling the word unknown', async () => {
+    // Some words have nothing but tagged senses. A definition a child can read
+    // beats "we don't know that word".
+    mockFetch.mockResolvedValue(ok(posLine({
+      senses: [{ glosses: ['Only sense, and it is dated.'], tags: ['dated'] }],
+    })))
+    const result = await fetchWordFromDictionaryApi('whatsit')
+    expect(result!.rawDefinition).toBe('Only sense, and it is dated.')
   })
 
-  it('returns null instead of throwing when the network call rejects', async () => {
-    global.fetch = vi.fn().mockRejectedValue(new Error('network error')) as unknown as typeof fetch
-    await expect(fetchWordFromDictionaryApi('enormous')).resolves.toBeNull()
+  it('prefers the first part of speech that has a usable sense', async () => {
+    const unusable = posLine({ pos: 'verb', senses: [{ glosses: [] }] })
+    mockFetch.mockResolvedValue(ok(`${unusable}\n${posLine({ pos: 'noun' })}`))
+
+    const result = await fetchWordFromDictionaryApi('rainbow')
+    expect(result!.partOfSpeech).toBe('noun')
   })
 
-  it('aborts on the dictionary budget, not the AI one', async () => {
-    // The upstream hangs on unknown words, so this timeout is what a child
-    // actually waits through after a misspelling. Sharing requestTimeoutMs
-    // with Gemini made that wait 20 seconds.
-    const timeout = vi.spyOn(AbortSignal, 'timeout')
-    global.fetch = vi
-      .fn()
-      .mockResolvedValue({ ok: false, status: 404 }) as unknown as typeof fetch
+  it('expands the abbreviated part of speech', async () => {
+    // kaikki says "adj"; the badge colours on "adjective" and shows the label
+    // to the child, so an abbreviation would render grey and read wrong.
+    mockFetch.mockResolvedValue(ok(posLine({ pos: 'adj' })))
+    const result = await fetchWordFromDictionaryApi('enormous')
+    expect(result!.partOfSpeech).toBe('adjective')
+  })
 
-    await fetchWordFromDictionaryApi('zzqqxwvfake')
+  it('passes through a part of speech it has no expansion for', async () => {
+    mockFetch.mockResolvedValue(ok(posLine({ pos: 'phrase' })))
+    const result = await fetchWordFromDictionaryApi('rainbow')
+    expect(result!.partOfSpeech).toBe('phrase')
+  })
 
-    expect(timeout).toHaveBeenCalledWith(config.network.dictionaryTimeoutMs)
-    timeout.mockRestore()
+  it('caps synonyms at the configured maximum', async () => {
+    mockFetch.mockResolvedValue(ok(posLine({
+      synonyms: Array.from({ length: 20 }, (_, i) => ({ word: `syn${i}` })),
+    })))
+    const result = await fetchWordFromDictionaryApi('rainbow')
+    expect(result!.synonyms.length).toBeLessThanOrEqual(config.word.maxSynonyms)
+  })
+
+  it('returns a null phonetic and audio when the word has no recording', async () => {
+    mockFetch.mockResolvedValue(ok(posLine({ sounds: [] })))
+    const result = await fetchWordFromDictionaryApi('rainbow')
+    expect(result!.phonetic).toBeNull()
+    expect(result!.audioUrl).toBeNull()
+    expect(result!.rawDefinition).toBe('A multicoloured arch in the sky.')
+  })
+
+  it('returns null for an unknown word', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 404, text: async () => '' })
+    expect(await fetchWordFromDictionaryApi('xyzabc123')).toBeNull()
+  })
+
+  it('returns null when the upstream is unreachable', async () => {
+    // An outage must degrade to "not found", never crash the word page.
+    mockFetch.mockRejectedValue(new Error('ECONNREFUSED'))
+    expect(await fetchWordFromDictionaryApi('rainbow')).toBeNull()
+  })
+
+  it('returns null when the payload is not the shape we expect', async () => {
+    mockFetch.mockResolvedValue(ok('not json at all'))
+    expect(await fetchWordFromDictionaryApi('rainbow')).toBeNull()
   })
 })

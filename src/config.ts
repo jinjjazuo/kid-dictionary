@@ -92,6 +92,37 @@ export const config = {
     quizQuestionCount: 10,
   },
 
+  /**
+   * Source of the raw entry that gates every billable step.
+   *
+   * kaikki.org publishes Wiktionary parsed into JSON by the Wiktextract
+   * project. Wiktionary itself only exposes wikitext templates
+   * ({{IPA|en|...}}, {{syn|en|iris}}), so going direct would mean owning a
+   * template parser that breaks whenever Wiktionary reshuffles a template.
+   * This gives the same data already structured, including a resolved mp3.
+   */
+  dictionary: {
+    /** Paths sit under <first letter>/<first two letters>/<word>.jsonl. */
+    baseUrl: 'https://kaikki.org/dictionary/English/meaning',
+    /**
+     * kaikki does not currently require one, but Wikimedia — where the audio
+     * is actually hosted — returns 403 without it. Sent on both for
+     * consistency and so the traffic is attributable if it ever misbehaves.
+     */
+    userAgent: 'kid-dictionary/0.1 (educational word app for children)',
+    /**
+     * Wiktionary orders senses historically, not by how common they are, so
+     * 'enormous' leads with the obsolete "deviating from the norm". Feeding
+     * that to the model teaches a child the wrong meaning. These tags are
+     * skipped when picking a sense; the last four are a safety filter rather
+     * than a quality one.
+     */
+    excludedSenseTags: [
+      'obsolete', 'archaic', 'dated', 'rare',
+      'vulgar', 'offensive', 'derogatory', 'slang',
+    ],
+  },
+
   word: {
     maxInputLength: 50,
     maxSynonyms: 4,
@@ -119,17 +150,17 @@ export const config = {
      */
     requestTimeoutMs: 20000,
     /**
-     * dictionaryapi.dev does not answer an unknown word with a 404: the
-     * request hangs until Cloudflare gives up with a 522 at around 20s. A word
-     * that exists answers in about 130ms, so this budget expires only on a
-     * lookup that was going to fail anyway.
+     * kaikki answers a known word in about a second, and a cold one in under
+     * four, so this is headroom rather than a workaround — unlike the 3s it
+     * held when the source was dictionaryapi.dev, which hung until Cloudflare
+     * gave up with a 522 at around 20 seconds.
      *
      * It is deliberately not requestTimeoutMs. A generation call needs the
      * full 20s, and sharing one number made every misspelling — the most
      * likely input from a four-year-old — cost 20 seconds of spinner before
      * "Hmm, we don't know that word!".
      */
-    dictionaryTimeoutMs: 3000,
+    dictionaryTimeoutMs: 5000,
   },
 } as const
 

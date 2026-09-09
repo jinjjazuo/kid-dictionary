@@ -67,10 +67,11 @@ describe('config', () => {
   })
 
   it('gives up on the dictionary lookup long before an AI call', () => {
-    // dictionaryapi.dev does not 404 an unknown word — it hangs until
-    // Cloudflare cuts it off with a 522 at ~20s. A real word answers in about
-    // 130ms, so the two calls cannot share one budget: a child's typo would
-    // wait out the AI timeout before seeing "we don't know that word".
+    // kaikki answers a real word in about a second and 404s an unknown one
+    // in under one, so the two calls cannot share one budget: a child's typo
+    // would wait out the AI timeout before seeing "we don't know that word".
+    // The bound mattered more under the old dictionaryapi.dev, which hung to
+    // a Cloudflare 522 at ~20s rather than 404ing; it is kept as a guard.
     expect(config.network.dictionaryTimeoutMs).toBeLessThanOrEqual(5000)
     expect(config.network.requestTimeoutMs).toBeGreaterThan(
       config.network.dictionaryTimeoutMs,

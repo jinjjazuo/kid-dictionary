@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/Badge'
+import { PlayWord } from '@/components/PlayWord'
 import { Card, CardContent } from '@/components/ui/Card'
 import type { WordData } from '@/types'
 
@@ -19,8 +20,15 @@ export function DictionaryEntry({ data }: { data: WordData }) {
           <Badge partOfSpeech={data.partOfSpeech} />
         </div>
 
-        {data.phonetic && (
-          <p className="mb-4 font-nunito text-lg text-muted-foreground">{data.phonetic}</p>
+        {/* The recording sits with the phonetics because it is the same
+            information, in the form a child who cannot read IPA can use. */}
+        {(data.phonetic || data.audioUrl) && (
+          <div className="mb-4 flex items-center gap-3">
+            <PlayWord word={data.word} audioUrl={data.audioUrl} />
+            {data.phonetic && (
+              <p className="font-nunito text-lg text-muted-foreground">{data.phonetic}</p>
+            )}
+          </div>
         )}
 
         <p className="font-nunito text-xl leading-relaxed">{data.definition}</p>

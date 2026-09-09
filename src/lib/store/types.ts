@@ -26,6 +26,11 @@ export type SavedWord = {
   synonyms: string[]
   phonetic: string | null
   comicImageUrl: string | null
+  /**
+   * Optional so collections saved before audio existed still parse. A word
+   * stored without it simply shows no play button.
+   */
+  audioUrl?: string | null
   ageGroup: AgeGroup
   textVersion: number
   /** ISO 8601. */

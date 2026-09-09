@@ -39,6 +39,7 @@ type DbRow = {
   phonetic: string | null
   story_script: Scene[] | null
   comic_image_url: string | null
+  audio_url: string | null
   text_version: number
 }
 
@@ -52,6 +53,7 @@ type PendingRow = {
   synonyms: string[]
   phonetic: string | null
   story_script: Scene[]
+  audio_url: string | null
   text_version: number
   image_version: number
 }
@@ -69,6 +71,7 @@ export function dbRowToWordData(row: DbRow): WordData {
     phonetic: row.phonetic,
     storyScript: row.story_script ?? [],
     comicImageUrl: row.comic_image_url,
+    audioUrl: row.audio_url,
     textVersion: row.text_version,
   }
 }
@@ -129,6 +132,7 @@ export async function lookupWord(word: string, ageGroup: AgeGroup): Promise<Word
     partOfSpeech: dict.partOfSpeech,
     synonyms: dict.synonyms,
     phonetic: dict.phonetic,
+    audioUrl: dict.audioUrl,
     textVersion: config.content.textVersion,
   }
 
@@ -191,6 +195,7 @@ export async function lookupWord(word: string, ageGroup: AgeGroup): Promise<Word
       synonyms: dict.synonyms,
       phonetic: dict.phonetic,
       story_script: storyScript,
+      audio_url: dict.audioUrl,
       text_version: config.content.textVersion,
       image_version: config.content.imageVersion,
     }),

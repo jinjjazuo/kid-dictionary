@@ -3,7 +3,7 @@ import type { AgeGroup } from '@/config'
 export type { AgeGroup }
 
 /**
- * Grammatical category from dictionaryapi.dev. Drives the colour of the badge
+ * Grammatical category from the dictionary source. Drives the colour of the badge
  * on a word card. Unrecognised values fall back to a neutral badge, so this
  * union does not need to be exhaustive.
  */
@@ -29,6 +29,8 @@ export type WordData = {
   phonetic: string | null
   storyScript: Scene[]
   comicImageUrl: string | null
+  /** Wiktionary recording of the word, hosted on Wikimedia. Null when none exists. */
+  audioUrl: string | null
   textVersion: number
 }
 
@@ -48,4 +50,5 @@ export type DictionaryApiResult = {
   partOfSpeech: string | null
   rawDefinition: string
   synonyms: string[]
+  audioUrl: string | null
 }
