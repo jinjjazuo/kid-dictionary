@@ -8,9 +8,25 @@ import { comicObjectKey, compressToWebp } from '@/lib/images/compress'
 import { checkWord } from '@/lib/safety/check'
 import type { AgeGroup, Scene, WordData } from '@/types'
 
+/**
+ * `comic` carries the illustration, which resolves long after `data`.
+ *
+ * The two are split so the page can render the definition immediately and
+ * stream the comic in under a Suspense boundary. Image generation takes tens
+ * of seconds; making a child wait that long to read what a word means was the
+ * whole reason for the split.
+ *
+ * On a cache hit `comic` is already resolved and `data.comicImageUrl` holds
+ * the same value. On a miss `data.comicImageUrl` is null because the URL is
+ * not known yet — `comic` is the authority, never the field.
+ *
+ * `comic` never rejects. A rejection would surface at the Suspense boundary
+ * and take the definition down with it, which is exactly what the
+ * graceful-degradation rule forbids.
+ */
 export type WordResult =
   | { found: false }
-  | { found: true; data: WordData }
+  | { found: true; data: WordData; comic: Promise<string | null> }
 
 type DbRow = {
   id: string
@@ -24,6 +40,20 @@ type DbRow = {
   story_script: Scene[] | null
   comic_image_url: string | null
   text_version: number
+}
+
+/** Everything the cache row needs except the URL the comic step produces. */
+type PendingRow = {
+  word: string
+  age_group: AgeGroup
+  definition: string
+  part_of_speech: string | null
+  examples: string[]
+  synonyms: string[]
+  phonetic: string | null
+  story_script: Scene[]
+  text_version: number
+  image_version: number
 }
 
 /** Maps a database row to the shape the UI consumes. */
@@ -50,6 +80,11 @@ export function dbRowToWordData(row: DbRow): WordData {
  * both run before anything billable, which is what stops blocked words and
  * gibberish from consuming the daily quota.
  *
+ * The order is unchanged by the text/comic split — the comic is still drawn
+ * after the text, and the row is still written exactly once, at the end. The
+ * only difference is that the caller gets the text back before the comic
+ * finishes instead of after.
+ *
  * Every AI step degrades rather than fails. The distinction that matters:
  * text failures do NOT cache, because a row with unimproved text would be
  * served forever and a retry may succeed; image failure DOES cache, because
@@ -75,7 +110,10 @@ export async function lookupWord(word: string, ageGroup: AgeGroup): Promise<Word
     .eq('text_version', config.content.textVersion)
     .maybeSingle()
 
-  if (cached) return { found: true, data: dbRowToWordData(cached as DbRow) }
+  if (cached) {
+    const data = dbRowToWordData(cached as DbRow)
+    return { found: true, data, comic: Promise.resolve(data.comicImageUrl) }
+  }
 
   // 3. Validate the word exists before calling a paid model. An entry with
   // an empty definition is treated the same as no entry — rendering it
@@ -115,6 +153,7 @@ export async function lookupWord(word: string, ageGroup: AgeGroup): Promise<Word
         storyScript: [],
         comicImageUrl: null,
       },
+      comic: Promise.resolve(null),
     }
   }
 
@@ -128,22 +167,22 @@ export async function lookupWord(word: string, ageGroup: AgeGroup): Promise<Word
   // the text was fine. Serve the text but do not cache, so a retry can still
   // produce the comic.
   if (content.scenes === null) {
-    return { found: true, data: { ...withText, storyScript: [], comicImageUrl: null } }
+    return {
+      found: true,
+      data: { ...withText, storyScript: [], comicImageUrl: null },
+      comic: Promise.resolve(null),
+    }
   }
 
   const storyScript = content.scenes
 
-  // 6-8. Comic: generate, compress, upload. Any failure yields a null URL,
-  // which still caches.
-  const comicImageUrl =
-    storyScript.length > 0
-      ? await generateComicUrl(normalised, ageGroup, storyScript)
-      : null
-
-  // 9. Cache.
-  const { data: inserted } = await supabase
-    .from('words')
-    .insert({
+  // 6-9. Comic then cache, deferred. Not awaited here: this is the promise
+  // the page streams into, and awaiting it would restore the very delay the
+  // split exists to remove.
+  return {
+    found: true,
+    data: { ...withText, storyScript, comicImageUrl: null },
+    comic: completeComicAndCache(supabase, {
       word: normalised,
       age_group: ageGroup,
       definition: content.definition,
@@ -152,21 +191,45 @@ export async function lookupWord(word: string, ageGroup: AgeGroup): Promise<Word
       synonyms: dict.synonyms,
       phonetic: dict.phonetic,
       story_script: storyScript,
-      comic_image_url: comicImageUrl,
       text_version: config.content.textVersion,
       image_version: config.content.imageVersion,
-    })
-    .select()
-    .single()
-
-  if (inserted) return { found: true, data: dbRowToWordData(inserted as DbRow) }
-
-  // The insert failed — a concurrent request for the same word most likely
-  // won the unique constraint. Serve what was generated rather than erroring.
-  return {
-    found: true,
-    data: { ...withText, storyScript, comicImageUrl },
+    }),
   }
+}
+
+/**
+ * Draws the comic, then writes the one cache row for this lookup.
+ *
+ * Both steps are swallowed on failure so the returned promise cannot reject —
+ * see the note on WordResult. The two catches are separate on purpose: a
+ * failed insert must not discard a comic URL that was generated successfully,
+ * because the page can still show it even though the next visitor will have
+ * to regenerate it.
+ */
+async function completeComicAndCache(
+  supabase: ReturnType<typeof createServiceClient>,
+  row: PendingRow,
+): Promise<string | null> {
+  let comicImageUrl: string | null = null
+
+  try {
+    if (row.story_script.length > 0) {
+      comicImageUrl = await generateComicUrl(row.word, row.age_group, row.story_script)
+    }
+  } catch {
+    // The provider threw rather than returning null. The text is still worth
+    // caching, so fall through to the insert.
+  }
+
+  try {
+    await supabase.from('words').insert({ ...row, comic_image_url: comicImageUrl })
+  } catch {
+    // A concurrent request for the same word most likely won the unique
+    // constraint, or the network failed. Either way the caller still gets
+    // what was generated.
+  }
+
+  return comicImageUrl
 }
 
 /**

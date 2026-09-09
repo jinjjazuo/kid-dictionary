@@ -1,14 +1,37 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { config } from '@/config'
 import { lookupWord } from '@/lib/word-pipeline'
-import { WordPageClient } from '@/components/WordPageClient'
+import { ComicStrip } from '@/components/ComicStrip'
+import { DictionaryEntry } from '@/components/DictionaryEntry'
+import { SaveWord } from '@/components/SaveWord'
 import { SearchBar } from '@/components/SearchBar'
 import { Card, CardContent } from '@/components/ui/Card'
-import type { AgeGroup } from '@/types'
+import type { AgeGroup, WordData } from '@/types'
 
 /**
- * A server component, so generation happens on the server and the page
- * arrives complete. Generation can take around ten seconds on a cache miss.
+ * The half of the page that waits on the image model.
+ *
+ * It is its own async component purely so it can sit inside a Suspense
+ * boundary — that is what lets the definition above it reach the screen while
+ * this is still awaiting a comic that takes tens of seconds to draw.
+ */
+async function Comic({ data, comic }: { data: WordData; comic: Promise<string | null> }) {
+  const comicImageUrl = await comic
+  return (
+    <>
+      <ComicStrip word={data.word} imageUrl={comicImageUrl} scenes={data.storyScript} />
+      <SaveWord data={{ ...data, comicImageUrl }} />
+    </>
+  )
+}
+
+/**
+ * A server component, so generation happens on the server and no key reaches
+ * the browser. The definition is awaited and rendered; the comic streams in
+ * afterwards under a Suspense boundary, because making a child wait tens of
+ * seconds to read what a word means is worse than making them wait for the
+ * picture.
  *
  * The age group comes from the query string rather than localStorage because
  * this component cannot read localStorage. The header toggle writes the
@@ -57,7 +80,23 @@ export default async function WordPage({
 
   return (
     <main className="container mx-auto max-w-2xl px-4 py-8">
-      <WordPageClient data={result.data} />
+      <DictionaryEntry data={result.data} />
+
+      {/* The scene text is already known here, so the fallback shows the whole
+          story and only the picture itself is still missing. */}
+      <Suspense
+        fallback={
+          <ComicStrip
+            word={result.data.word}
+            imageUrl={null}
+            scenes={result.data.storyScript}
+            pending
+          />
+        }
+      >
+        <Comic data={result.data} comic={result.comic} />
+      </Suspense>
+
       <div className="mt-8">
         <SearchBar />
       </div>

@@ -13,15 +13,22 @@ import type { Scene } from '@/types'
  * An image that fails to load hides itself and leaves the scene text, which
  * is the graceful-degradation requirement — a child must never see a broken
  * image icon where a story should be.
+ *
+ * `pending` is the drawing state, streamed in while the comic generates. It
+ * is deliberately distinct from a null imageUrl, which means no comic is
+ * coming at all — either it failed or the word is one whose illustration is
+ * withheld. Showing a placeholder in that case would spin forever.
  */
 export function ComicStrip({
   word,
   imageUrl,
   scenes,
+  pending = false,
 }: {
   word: string
   imageUrl: string | null
   scenes: Scene[]
+  pending?: boolean
 }) {
   const [imageFailed, setImageFailed] = useState(false)
 
@@ -30,6 +37,14 @@ export function ComicStrip({
   return (
     <section className="mt-8">
       <h2 className="mb-4 font-fredoka text-2xl font-bold">A story about {word}</h2>
+
+      {/* Only ever reached with scenes present, so a comic really is coming. */}
+      {pending && (
+        <div
+          data-testid="comic-pending"
+          className="aspect-[3/2] w-full animate-pulse rounded-2xl border-2 border-border bg-muted"
+        />
+      )}
 
       {imageUrl && !imageFailed && (
         <img

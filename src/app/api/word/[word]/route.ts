@@ -11,7 +11,9 @@ import type { AgeGroup } from '@/types'
  * the collection, both games — happens client-side against localStorage.
  *
  * Generation can take around ten seconds on a cache miss, so the timeout is
- * raised above the platform default.
+ * raised above the platform default. This route waits for the whole pipeline
+ * including the comic; the streamed word page is what gives a human the
+ * definition early.
  */
 export const maxDuration = 60
 
@@ -37,7 +39,10 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(result.data)
+    // Plain JSON has no way to send a pending value, so unlike the page
+    // this must wait for the comic and fold the URL in. Without it every
+    // cache-miss response would claim the word has no comic.
+    return NextResponse.json({ ...result.data, comicImageUrl: await result.comic })
   } catch {
     return NextResponse.json(
       { error: 'Something went wrong. Please try again!' },
