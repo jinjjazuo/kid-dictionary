@@ -79,7 +79,8 @@ export default async function WordPage({
   }
 
   return (
-    <main className="container mx-auto max-w-2xl px-4 py-8">
+    // Wider from lg so the comic keeps a readable size with its story beside it.
+    <main className="container mx-auto max-w-2xl px-4 py-8 lg:max-w-5xl">
       <DictionaryEntry data={result.data} />
 
       {/* The scene text is already known here, so the fallback shows the whole

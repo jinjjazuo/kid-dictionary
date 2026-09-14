@@ -75,6 +75,17 @@ export const config = {
      * Supabase Storage's 1 GB free tier: ~6,600 comics fit instead of ~830.
      */
     quality: 80,
+    /**
+     * The image model centres the strip on a square canvas and leaves a
+     * near-white margin around it — on most 4-6 comics, over half the file.
+     * Cropping it before upload lets the strip use the card's full width.
+     *
+     * The margin is 253-254, not 255, so an exact-white trim leaves it in
+     * place. At 24 the crop lands on the panel outline; at 10 it left a
+     * 2-3px off-white fringe. Raising it counts more pale artwork at the
+     * edge as margin.
+     */
+    trim: { background: '#ffffff', threshold: 24 },
     /** One year. Comics are immutable once generated. */
     cacheSeconds: 31536000,
   },

@@ -3,7 +3,13 @@ import { config } from '@/config'
 import type { AgeGroup } from '@/types'
 
 /**
- * Converts a generated comic PNG into WebP.
+ * Crops a generated comic PNG to its artwork and converts it to WebP.
+ *
+ * The crop exists because the image model centres the strip on a square
+ * canvas; uncropped, the strip renders as a band inside a white box. Only the
+ * uniform outer margin goes — the gutters between panels, and the white page
+ * of a comic drawn without panel borders, are artwork and stay. An image with
+ * no margin comes back uncropped.
  *
  * WebP at the configured quality is roughly an eighth the size of the source
  * PNG with no visible difference on a tablet screen. That ratio is what keeps
@@ -14,7 +20,10 @@ import type { AgeGroup } from '@/types'
  * failed comic and caches the row without one.
  */
 export async function compressToWebp(png: Buffer): Promise<Buffer> {
-  return sharp(png).webp({ quality: config.images.quality }).toBuffer()
+  return sharp(png)
+    .trim(config.images.trim)
+    .webp({ quality: config.images.quality })
+    .toBuffer()
 }
 
 /**

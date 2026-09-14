@@ -27,11 +27,26 @@ describe('compressToWebp', () => {
     expect(webp.length).toBeLessThan(png.length)
   })
 
-  it('preserves the image dimensions', async () => {
+  it('preserves the dimensions of an image with no margin', async () => {
     const webp = await compressToWebp(await makePng(800, 400))
     const meta = await sharp(webp).metadata()
     expect(meta.width).toBe(800)
     expect(meta.height).toBe(400)
+  })
+
+  it('crops the near-white margin the image model leaves around the strip', async () => {
+    // The model returns a square canvas with the strip centred in it. Its
+    // margin is 253-254, not 255, so an exact-white trim would leave it.
+    const strip = await sharp({
+      create: { width: 900, height: 300, channels: 3, background: { r: 80, g: 180, b: 230 } },
+    }).png().toBuffer()
+    const padded = await sharp({
+      create: { width: 1024, height: 1024, channels: 3, background: { r: 253, g: 253, b: 253 } },
+    }).composite([{ input: strip, top: 362, left: 62 }]).png().toBuffer()
+
+    const meta = await sharp(await compressToWebp(padded)).metadata()
+    expect(meta.width).toBe(900)
+    expect(meta.height).toBe(300)
   })
 
   it('rejects input that is not an image', async () => {

@@ -14,7 +14,7 @@ import { Card, CardContent } from '@/components/ui/Card'
  */
 export default function Loading() {
   return (
-    <main className="container mx-auto max-w-2xl px-4 py-8">
+    <main className="container mx-auto max-w-2xl px-4 py-8 lg:max-w-5xl">
       <div role="status" aria-label="Looking up your word">
         <p className="mb-6 flex items-center justify-center gap-2 text-center font-fredoka
                       text-2xl font-bold text-primary">
@@ -38,8 +38,11 @@ export default function Loading() {
           </CardContent>
         </Card>
 
-        <div className="mt-8 aspect-[3/2] w-full animate-pulse rounded-2xl border-2
-                        border-border bg-muted" />
+        {/* Same columns as ComicStrip, so the picture lands where this was. */}
+        <div className="mt-8 lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8">
+          <div className="aspect-[3/2] w-full animate-pulse rounded-2xl border-2
+                          border-border bg-muted" />
+        </div>
       </div>
     </main>
   )
